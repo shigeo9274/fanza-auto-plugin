@@ -1,0 +1,68 @@
+{
+  "post_settings": {
+    "1": {
+      "title": "[title]",
+      "content": "[title]の詳細情報です。",
+      "eyecatch": "sample",
+      "movie_size": "auto",
+      "poster": "package",
+      "category": "jan",
+      "sort": "rank",
+      "article": "",
+      "status": "publish",
+      "hour": "h09",
+      "overwrite_existing": false,
+      "target_new_posts": 10,
+      "floor": "videoc",
+      "keyword": ""
+    },
+    "2": {
+      "title": "[title] - 設定2",
+      "content": "[title]の詳細情報です。設定2",
+      "eyecatch": "package",
+      "movie_size": "720",
+      "poster": "sample",
+      "category": "act",
+      "sort": "date",
+      "article": "actress",
+      "status": "draft",
+      "hour": "h12",
+      "overwrite_existing": true,
+      "target_new_posts": 20,
+      "floor": "videoc",
+      "keyword": "素人"
+    },
+    "3": {
+      "title": "[title] - 設定3",
+      "content": "[title]の詳細情報です。設定3",
+      "eyecatch": "1",
+      "movie_size": "600",
+      "poster": "none",
+      "category": "director",
+      "sort": "review",
+      "article": "genre",
+      "status": "publish",
+      "hour": "h18",
+      "overwrite_existing": false,
+      "target_new_posts": 15,
+      "floor": "videoc",
+      "keyword": "動画"
+    },
+    "4": {
+      "title": "[title] - 設定4",
+      "content": "[title]の詳細情報です。設定4",
+      "eyecatch": "99",
+      "movie_size": "560",
+      "poster": "package",
+      "category": "seri",
+      "sort": "price",
+      "article": "series",
+      "status": "draft",
+      "hour": "h21",
+      "overwrite_existing": true,
+      "target_new_posts": 25,
+      "floor": "videoc",
+      "keyword": "AV"
+    }
+  }
+}

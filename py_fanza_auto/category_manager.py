@@ -46,9 +46,16 @@ class CategoryManager:
         """カテゴリ一覧を読み込み"""
         try:
             categories = self.wp_client.get_categories()
-            for cat in categories:
-                self.category_cache[cat['slug']] = cat
-            logger.info(f"{len(self.category_cache)}個のカテゴリをキャッシュしました")
+            if isinstance(categories, list):
+                for cat in categories:
+                    if isinstance(cat, dict) and 'slug' in cat:
+                        self.category_cache[cat['slug']] = cat
+                    elif isinstance(cat, str):
+                        # 文字列の場合は基本的なカテゴリ情報を作成
+                        self.category_cache[cat] = {'slug': cat, 'name': cat, 'id': None}
+                logger.info(f"{len(self.category_cache)}個のカテゴリをキャッシュしました")
+            else:
+                logger.warning("カテゴリデータがリスト形式ではありません")
         except Exception as e:
             logger.error(f"カテゴリ読み込みエラー: {e}")
     
@@ -56,9 +63,16 @@ class CategoryManager:
         """タグ一覧を読み込み"""
         try:
             tags = self.wp_client.get_tags()
-            for tag in tags:
-                self.tag_cache[tag['slug']] = tag
-            logger.info(f"{len(self.tag_cache)}個のタグをキャッシュしました")
+            if isinstance(tags, list):
+                for tag in tags:
+                    if isinstance(tag, dict) and 'slug' in tag:
+                        self.tag_cache[tag['slug']] = tag
+                    elif isinstance(tag, str):
+                        # 文字列の場合は基本的なタグ情報を作成
+                        self.tag_cache[tag] = {'slug': tag, 'name': tag, 'id': None}
+                logger.info(f"{len(self.tag_cache)}個のタグをキャッシュしました")
+            else:
+                logger.warning("タグデータがリスト形式ではありません")
         except Exception as e:
             logger.error(f"タグ読み込みエラー: {e}")
     
@@ -119,14 +133,16 @@ class CategoryManager:
         category_ids = []
         actresses = item.get('actress', [])
         
-        for actress in actresses:
-            name = actress.get('name', '')
-            if name:
-                # 女優名をサニタイズしてスラッグを作成
-                slug = self._sanitize_slug(name)
-                category_id = self._get_or_create_category(name, slug, f"女優: {name}")
-                if category_id:
-                    category_ids.append(category_id)
+        if isinstance(actresses, list):
+            for actress in actresses:
+                if isinstance(actress, dict):
+                    name = actress.get('name', '')
+                    if name:
+                        # 女優名をサニタイズしてスラッグを作成
+                        slug = self._sanitize_slug(name)
+                        category_id = self._get_or_create_category(name, slug, f"女優: {name}")
+                        if category_id:
+                            category_ids.append(category_id)
         
         return category_ids
     
@@ -135,13 +151,15 @@ class CategoryManager:
         category_ids = []
         directors = item.get('director', [])
         
-        for director in directors:
-            name = director.get('name', '')
-            if name:
-                slug = self._sanitize_slug(name)
-                category_id = self._get_or_create_category(name, slug, f"監督: {name}")
-                if category_id:
-                    category_ids.append(category_id)
+        if isinstance(directors, list):
+            for director in directors:
+                if isinstance(director, dict):
+                    name = director.get('name', '')
+                    if name:
+                        slug = self._sanitize_slug(name)
+                        category_id = self._get_or_create_category(name, slug, f"監督: {name}")
+                        if category_id:
+                            category_ids.append(category_id)
         
         return category_ids
     
@@ -150,13 +168,15 @@ class CategoryManager:
         category_ids = []
         series = item.get('series', [])
         
-        for ser in series:
-            name = ser.get('name', '')
-            if name:
-                slug = self._sanitize_slug(name)
-                category_id = self._get_or_create_category(name, slug, f"シリーズ: {name}")
-                if category_id:
-                    category_ids.append(category_id)
+        if isinstance(series, list):
+            for ser in series:
+                if isinstance(ser, dict):
+                    name = ser.get('name', '')
+                    if name:
+                        slug = self._sanitize_slug(name)
+                        category_id = self._get_or_create_category(name, slug, f"シリーズ: {name}")
+                        if category_id:
+                            category_ids.append(category_id)
         
         return category_ids
     
@@ -165,13 +185,15 @@ class CategoryManager:
         category_ids = []
         genres = item.get('genre', [])
         
-        for genre in genres:
-            name = genre.get('name', '')
-            if name:
-                slug = self._sanitize_slug(name)
-                category_id = self._get_or_create_category(name, slug, f"ジャンル: {name}")
-                if category_id:
-                    category_ids.append(category_id)
+        if isinstance(genres, list):
+            for genre in genres:
+                if isinstance(genre, dict):
+                    name = genre.get('name', '')
+                    if name:
+                        slug = self._sanitize_slug(name)
+                        category_id = self._get_or_create_category(name, slug, f"ジャンル: {name}")
+                        if category_id:
+                            category_ids.append(category_id)
         
         return category_ids
     
@@ -180,13 +202,15 @@ class CategoryManager:
         category_ids = []
         makers = item.get('maker', [])
         
-        for maker in makers:
-            name = maker.get('name', '')
-            if name:
-                slug = self._sanitize_slug(name)
-                category_id = self._get_or_create_category(name, slug, f"メーカー: {name}")
-                if category_id:
-                    category_ids.append(category_id)
+        if isinstance(makers, list):
+            for maker in makers:
+                if isinstance(maker, dict):
+                    name = maker.get('name', '')
+                    if name:
+                        slug = self._sanitize_slug(name)
+                        category_id = self._get_or_create_category(name, slug, f"メーカー: {name}")
+                        if category_id:
+                            category_ids.append(category_id)
         
         return category_ids
     
@@ -201,7 +225,7 @@ class CategoryManager:
                 slug = self._sanitize_slug(name)
                 category_id = self._get_or_create_category(name, slug, f"レーベル: {name}")
                 if category_id:
-                    category_id.append(category_id)
+                    category_ids.append(category_id)
         
         return category_ids
     
@@ -222,7 +246,7 @@ class CategoryManager:
         
         # 価格ベース
         prices = item.get('prices', {})
-        if prices.get('list_price'):
+        if isinstance(prices, dict) and prices.get('list_price'):
             try:
                 price = int(prices['list_price'])
                 if price < 1000:
@@ -298,57 +322,69 @@ class CategoryManager:
         
         # 出演者タグ
         actresses = item.get('actress', [])
-        for actress in actresses:
-            name = actress.get('name', '')
-            if name:
-                tag_id = self._get_or_create_tag(name, f"actress-{self._sanitize_slug(name)}")
-                if tag_id:
-                    tag_ids.append(tag_id)
+        if isinstance(actresses, list):
+            for actress in actresses:
+                if isinstance(actress, dict):
+                    name = actress.get('name', '')
+                    if name:
+                        tag_id = self._get_or_create_tag(name, f"actress-{self._sanitize_slug(name)}")
+                        if tag_id:
+                            tag_ids.append(tag_id)
         
         # 監督タグ
         directors = item.get('director', [])
-        for director in directors:
-            name = director.get('name', '')
-            if name:
-                tag_id = self._get_or_create_tag(name, f"director-{self._sanitize_slug(name)}")
-                if tag_id:
-                    tag_ids.append(tag_id)
+        if isinstance(directors, list):
+            for director in directors:
+                if isinstance(director, dict):
+                    name = director.get('name', '')
+                    if name:
+                        tag_id = self._get_or_create_tag(name, f"director-{self._sanitize_slug(name)}")
+                        if tag_id:
+                            tag_ids.append(tag_id)
         
         # シリーズタグ
         series = item.get('series', [])
-        for ser in series:
-            name = ser.get('name', '')
-            if name:
-                tag_id = self._get_or_create_tag(name, f"series-{self._sanitize_slug(name)}")
-                if tag_id:
-                    tag_ids.append(tag_id)
+        if isinstance(series, list):
+            for ser in series:
+                if isinstance(ser, dict):
+                    name = ser.get('name', '')
+                    if name:
+                        tag_id = self._get_or_create_tag(name, f"series-{self._sanitize_slug(name)}")
+                        if tag_id:
+                            tag_ids.append(tag_id)
         
         # ジャンルタグ
         genres = item.get('genre', [])
-        for genre in genres:
-            name = genre.get('name', '')
-            if name:
-                tag_id = self._get_or_create_tag(name, f"genre-{self._sanitize_slug(name)}")
-                if tag_id:
-                    tag_ids.append(tag_id)
+        if isinstance(genres, list):
+            for genre in genres:
+                if isinstance(genre, dict):
+                    name = genre.get('name', '')
+                    if name:
+                        tag_id = self._get_or_create_tag(name, f"genre-{self._sanitize_slug(name)}")
+                        if tag_id:
+                            tag_ids.append(tag_id)
         
         # メーカータグ
         makers = item.get('maker', [])
-        for maker in makers:
-            name = maker.get('name', '')
-            if name:
-                tag_id = self._get_or_create_tag(name, f"maker-{self._sanitize_slug(name)}")
-                if tag_id:
-                    tag_ids.append(tag_id)
+        if isinstance(makers, list):
+            for maker in makers:
+                if isinstance(maker, dict):
+                    name = maker.get('name', '')
+                    if name:
+                        tag_id = self._get_or_create_tag(name, f"maker-{self._sanitize_slug(name)}")
+                        if tag_id:
+                            tag_ids.append(tag_id)
         
         # レーベルタグ
         labels = item.get('label', [])
-        for label in labels:
-            name = label.get('name', '')
-            if name:
-                tag_id = self._get_or_create_tag(name, f"label-{self._sanitize_slug(name)}")
-                if tag_id:
-                    tag_ids.append(tag_id)
+        if isinstance(labels, list):
+            for label in labels:
+                if isinstance(label, dict):
+                    name = label.get('name', '')
+                    if name:
+                        tag_id = self._get_or_create_tag(name, f"label-{self._sanitize_slug(name)}")
+                        if tag_id:
+                            tag_ids.append(tag_id)
         
         # コンテンツIDタグ
         content_id = item.get('content_id', '')

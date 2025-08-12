@@ -30,6 +30,7 @@ class Renderer:
             '[package-image]': self._get_image_url(item, 'imageURL'),
             '[sample-image]': self._get_image_url(item, 'sampleImageURL'),
             '[content-id]': item.get('content_id', ''),
+            '[cid]': item.get('content_id', ''),  # [cid]を追加
             '[url]': item.get('URL', ''),
             '[comment]': item.get('comment', ''),
             '[price]': item.get('price', ''),
@@ -38,7 +39,7 @@ class Renderer:
             '[actress]': self._get_actress_string(item),
             '[performer]': self._get_performer_string(item),
             '[maker]': self._get_maker_string(item),
-            '[label]': self._get_label_string(item),
+            '[label]': self._get_label_string(item),  # [label]を追加
             '[manufacture]': self._get_manufacture_string(item),
             '[director]': self._get_director_string(item),
             '[series]': self._get_series_string(item),
@@ -49,6 +50,11 @@ class Renderer:
             '[random3]': self.random_values['random3'],
         }
         
+        # デバッグログ
+        print(f"DEBUG: replace_variables - variables to replace:")
+        for key, value in variables.items():
+            print(f"DEBUG:   {key} -> {value}")
+        
         # 変数を置き換え
         for key, value in variables.items():
             content = content.replace(key, str(value))
@@ -58,11 +64,29 @@ class Renderer:
     def _get_image_url(self, item: Dict[str, Any], key: str) -> str:
         """画像URLを取得（辞書形式または文字列形式に対応）"""
         image_data = item.get(key, '')
+        
+        # デバッグログ
+        print(f"DEBUG: _get_image_url - key: {key}, type: {type(image_data)}, data: {image_data}")
+        
         if isinstance(image_data, dict):
             # 辞書の場合は最初のURLを使用
-            return list(image_data.values())[0] if image_data else ''
+            if image_data:
+                first_value = list(image_data.values())[0]
+                print(f"DEBUG: _get_image_url - first_value: {first_value}, type: {type(first_value)}")
+                if isinstance(first_value, list) and first_value:
+                    # リストの場合は最初の要素を使用
+                    result = first_value[0]
+                    print(f"DEBUG: _get_image_url - returning first list element: {result}")
+                    return result
+                elif isinstance(first_value, str):
+                    # 文字列の場合はそのまま使用
+                    print(f"DEBUG: _get_image_url - returning string value: {first_value}")
+                    return first_value
         elif isinstance(image_data, str):
+            print(f"DEBUG: _get_image_url - returning string data: {image_data}")
             return image_data
+        
+        print(f"DEBUG: _get_image_url - no valid data found, returning empty string")
         return ''
     
     def generate_package_image(self, item: Dict[str, Any], affiliate_url: str, title: str = '', width: str = '', height: str = '') -> str:
@@ -83,16 +107,30 @@ class Renderer:
     def generate_sample_images(self, item: Dict[str, Any], title: str = '', max_images: int = 10, show_caption: bool = True, show_link: bool = True, size: str = 'normal') -> str:
         """サンプル画像HTMLを生成（PHPのContentGenerator::generateSampleImages相当）"""
         sample_images = item.get('sampleImageURL', {})
+        
+        # デバッグログ
+        print(f"DEBUG: generate_sample_images - type: {type(sample_images)}, data: {sample_images}")
+        
         if not sample_images:
             return ''
         
         # DMM APIから返されるsampleImageURLは辞書形式
+        img_urls = []
         if isinstance(sample_images, dict):
-            img_urls = list(sample_images.values())
+            # 辞書の各値からURLを抽出
+            for key, value in sample_images.items():
+                print(f"DEBUG: generate_sample_images - processing key: {key}, value: {value}, type: {type(value)}")
+                if isinstance(value, list):
+                    # リストの場合は各要素を追加
+                    img_urls.extend([url for url in value if url])
+                elif isinstance(value, str):
+                    # 文字列の場合はそのまま追加
+                    img_urls.append(value)
         elif isinstance(sample_images, str):
+            # 文字列の場合、カンマ区切りとして処理
             img_urls = [img.strip() for img in sample_images.split(',') if img.strip()]
-        else:
-            img_urls = []
+        
+        print(f"DEBUG: generate_sample_images - extracted URLs: {img_urls}")
         
         if not img_urls:
             return ''
@@ -191,10 +229,20 @@ class Renderer:
             sample_images = self.generate_sample_images(item, item.get('title', ''))
             content = content.replace('[sample-images]', sample_images)
         
+        # [sample-photo]タグの置き換え（sample-imagesと同じ）
+        if '[sample-photo]' in content:
+            sample_images = self.generate_sample_images(item, item.get('title', ''))
+            content = content.replace('[sample-photo]', sample_images)
+        
         # [sample-movie]タグの置き換え
         if '[sample-movie]' in content:
             sample_movie = self.generate_sample_movie(item.get('content_id', ''), affiliate_url, movie_size)
             content = content.replace('[sample-movie]', sample_movie)
+        
+        # [sample-movie2]タグの置き換え（sample-movieと同じ）
+        if '[sample-movie2]' in content:
+            sample_movie = self.generate_sample_movie(item.get('content_id', ''), affiliate_url, movie_size)
+            content = content.replace('[sample-movie2]', sample_movie)
         
         # [detail-table]タグの置き換え
         if '[detail-table]' in content:
@@ -211,6 +259,11 @@ class Renderer:
         if '[api-mark]' in content:
             api_mark = self.generate_api_mark()
             content = content.replace('[api-mark]', api_mark)
+        
+        # [user_reviews]タグの置き換え
+        if '[user_reviews]' in content:
+            user_reviews = self._generate_user_reviews(item)
+            content = content.replace('[user_reviews]', user_reviews)
         
         return content
     
@@ -384,6 +437,26 @@ class Renderer:
                 html += '☆'
         
         return html
+    
+    def _generate_user_reviews(self, item: Dict[str, Any]) -> str:
+        """ユーザーレビューのHTMLを生成"""
+        review_average = item.get('review_average', 0)
+        review_count = item.get('review_count', 0)
+        
+        if not review_average and not review_count:
+            return '<p>まだレビューがありません。</p>'
+        
+        html = '<div class="user-reviews">'
+        
+        if review_average:
+            stars = self._generate_stars_html(review_average)
+            html += f'<div class="review-rating">評価: {stars} {review_average}</div>'
+        
+        if review_count:
+            html += f'<div class="review-count">レビュー数: {review_count}件</div>'
+        
+        html += '</div>'
+        return html
 
     def generate_detail_content_ul(self, item: Dict[str, Any]) -> str:
         """詳細情報のリスト形式HTMLを生成（WordPressブロックエディタ形式）"""
@@ -547,7 +620,9 @@ class Renderer:
         # 画像・動画の置換
         content = content.replace('[package-image]', self.generate_package_image(item, affiliate_url))
         content = content.replace('[sample-movie]', self.generate_sample_movie(item.get('content_id', ''), affiliate_url, movie_size))
+        content = content.replace('[sample-movie2]', self.generate_sample_movie(item.get('content_id', ''), affiliate_url, movie_size))
         content = content.replace('[sample-images]', self.generate_sample_images(item))
+        content = content.replace('[sample-photo]', self.generate_sample_images(item))
         
         # アフィリエイトボタンの置換
         content = content.replace('[affiliate-button]', 
@@ -555,6 +630,9 @@ class Renderer:
         
         # APIマークの置換
         content = content.replace('[api-mark]', self.generate_api_mark("FANZA"))
+        
+        # ユーザーレビューの置換
+        content = content.replace('[user_reviews]', self._generate_user_reviews(item))
         
         # その他の変数タグの置換
         content = content.replace('[content_id]', item.get('content_id', ''))

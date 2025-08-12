@@ -5,7 +5,7 @@ import queue
 import os
 import sys
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Dict, Any
 import traceback
 import time
 
@@ -88,7 +88,7 @@ class FanzaAutoGUI:
         
         # 設定のデフォルト値設定（設定が読み込まれていない場合のみ）
         try:
-            if not hasattr(self, 'settings') or not self.settings:
+            if not hasattr(self, 'settings') or not self.settings or not self.settings.dmm_api_id:
                 self.set_default_values()
         except Exception as e:
             print(f"デフォルト値設定エラー: {e}")
@@ -141,9 +141,6 @@ class FanzaAutoGUI:
         print("タブ作成開始")
         # 基本設定タブ
         self.create_basic_settings_tab()
-        
-        # 検索設定タブ
-        self.create_search_settings_tab()
         
         # スケジュール設定タブ
         self.create_schedule_settings_tab()
@@ -238,8 +235,107 @@ class FanzaAutoGUI:
         row = 0
         ttk.Label(browser_frame, text="ページ待機時間（秒）:", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky=tk.W, padx=(0, 15), pady=5)
         self.page_wait_sec_var = tk.StringVar()
-        ttk.Entry(browser_frame, textvariable=self.page_wait_sec_var, width=10).grid(row=row, column=1, sticky=tk.W, padx=(0, 10), pady=5)
+        ttk.Entry(browser_frame, textvariable=self.page_wait_sec_var, width=10).grid(row=row, column=1, sticky=(tk.W, tk.E), padx=(0, 10), pady=5)
         ttk.Label(browser_frame, text="※ページ読み込み後の待機時間", font=("Arial", 8), foreground="gray").grid(row=row, column=2, sticky=tk.W, padx=(5, 0), pady=5)
+        
+        # 検索設定
+        search_frame = ttk.LabelFrame(scrollable_frame, text="検索設定", padding="15")
+        search_frame.grid(row=3, column=0, sticky=(tk.W, tk.E), padx=15, pady=(0, 15))
+        search_frame.columnconfigure(1, weight=1)
+        
+        row = 0
+        ttk.Label(search_frame, text="検索サイト:", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky=tk.W, padx=(0, 15), pady=5)
+        self.site_var = tk.StringVar()
+        site_combo = ttk.Combobox(search_frame, textvariable=self.site_var, 
+                                 values=["FANZA", "FANZA通販"], state="readonly", width=15)
+        site_combo.grid(row=row, column=1, sticky=tk.W, padx=(0, 10), pady=5)
+        ttk.Label(search_frame, text="※検索対象のサイト", font=("Arial", 8), foreground="gray").grid(row=row, column=2, sticky=tk.W, padx=(5, 0), pady=5)
+        
+        row += 1
+        ttk.Label(search_frame, text="検索サービス:", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky=tk.W, padx=(0, 15), pady=5)
+        self.service_var = tk.StringVar()
+        service_combo = ttk.Combobox(search_frame, textvariable=self.service_var, 
+                                    values=["デジタル", "パッケージ", "両方"], state="readonly", width=15)
+        service_combo.grid(row=row, column=1, sticky=tk.W, padx=(0, 10), pady=5)
+        ttk.Label(search_frame, text="※検索対象のサービス", font=("Arial", 8), foreground="gray").grid(row=row, column=2, sticky=tk.W, padx=(5, 0), pady=5)
+        
+        row += 1
+        ttk.Label(search_frame, text="検索フロア:", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky=tk.W, padx=(0, 15), pady=5)
+        self.floor_var = tk.StringVar()
+        floor_combo = ttk.Combobox(search_frame, textvariable=self.floor_var, 
+                                  values=["動画", "通販", "レンタル", "動画通販"], state="readonly", width=15)
+        floor_combo.grid(row=row, column=1, sticky=tk.W, padx=(0, 10), pady=5)
+        ttk.Label(search_frame, text="※検索対象のフロア", font=("Arial", 8), foreground="gray").grid(row=row, column=2, sticky=tk.W, padx=(5, 0), pady=5)
+        
+        row += 1
+        ttk.Label(search_frame, text="取得件数:", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky=tk.W, padx=(0, 15), pady=5)
+        self.hits_var = tk.StringVar()
+        hits_combo = ttk.Combobox(search_frame, textvariable=self.hits_var, 
+                                 values=["10", "20", "30", "50", "100"], state="readonly", width=15)
+        hits_combo.grid(row=row, column=1, sticky=tk.W, padx=(0, 10), pady=5)
+        ttk.Label(search_frame, text="※取得する検索結果の数", font=("Arial", 8), foreground="gray").grid(row=row, column=2, sticky=tk.W, padx=(5, 0), pady=5)
+        
+        row += 1
+        ttk.Label(search_frame, text="サンプル画像最大数:", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky=tk.W, padx=(0, 15), pady=5)
+        self.maximage_var = tk.StringVar()
+        maximage_combo = ttk.Combobox(search_frame, textvariable=self.maximage_var, 
+                                     values=["1", "2", "3", "5", "10"], state="readonly", width=15)
+        maximage_combo.grid(row=row, column=1, sticky=tk.W, padx=(0, 10), pady=5)
+        ttk.Label(search_frame, text="※表示するサンプル画像の最大数", font=("Arial", 8), foreground="gray").grid(row=row, column=2, sticky=tk.W, padx=(5, 0), pady=5)
+        
+        row += 1
+        ttk.Label(search_frame, text="制限フラグ:", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky=tk.W, padx=(0, 15), pady=5)
+        self.limited_flag_var = tk.StringVar()
+        limited_combo = ttk.Combobox(search_frame, textvariable=self.limited_flag_var, 
+                                    values=["制限なし", "制限あり"], state="readonly", width=15)
+        limited_combo.grid(row=row, column=1, sticky=tk.W, padx=(0, 10), pady=5)
+        ttk.Label(search_frame, text="※制限フラグの設定", font=("Arial", 8), foreground="gray").grid(row=row, column=2, sticky=tk.W, padx=(5, 0), pady=5)
+        
+        row += 1
+        ttk.Label(search_frame, text="検索キーワード:", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky=tk.W, padx=(0, 15), pady=5)
+        self.keyword_var = tk.StringVar()
+        ttk.Entry(search_frame, textvariable=self.keyword_var, width=30).grid(row=row, column=1, sticky=tk.W, padx=(0, 10), pady=5)
+        ttk.Label(search_frame, text="※検索に使用するキーワード", font=("Arial", 8), foreground="gray").grid(row=row, column=2, sticky=tk.W, padx=(5, 0), pady=5)
+        
+        row += 1
+        ttk.Label(search_frame, text="検索ソート順:", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky=tk.W, padx=(0, 15), pady=5)
+        self.sort_var = tk.StringVar()
+        sort_combo = ttk.Combobox(search_frame, textvariable=self.sort_var, 
+                                 values=["発売日順", "名前順", "価格順", "レビュー順", "人気順"], state="readonly", width=15)
+        sort_combo.grid(row=row, column=1, sticky=tk.W, padx=(0, 10), pady=5)
+        ttk.Label(search_frame, text="※検索結果のソート順", font=("Arial", 8), foreground="gray").grid(row=row, column=2, sticky=tk.W, padx=(5, 0), pady=5)
+        
+        row += 1
+        ttk.Label(search_frame, text="記事タイプ:", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky=tk.W, padx=(0, 15), pady=5)
+        self.article_type_var = tk.StringVar()
+        article_combo = ttk.Combobox(search_frame, textvariable=self.article_type_var, 
+                                    values=["指定なし", "女優", "ジャンル", "シリーズ"], state="readonly", width=15)
+        article_combo.grid(row=row, column=1, sticky=tk.W, padx=(0, 10), pady=5)
+        ttk.Label(search_frame, text="※記事の種類", font=("Arial", 8), foreground="gray").grid(row=row, column=2, sticky=tk.W, padx=(5, 0), pady=5)
+        
+        row += 1
+        ttk.Label(search_frame, text="IDフィルター:", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky=tk.W, padx=(0, 15), pady=5)
+        self.id_filter_var = tk.StringVar()
+        ttk.Entry(search_frame, textvariable=self.id_filter_var, width=15).grid(row=row, column=1, sticky=tk.W, padx=(0, 10), pady=5)
+        ttk.Label(search_frame, text="※特定のIDのみを対象とする場合", font=("Arial", 8), foreground="gray").grid(row=row, column=2, sticky=tk.W, padx=(5, 0), pady=5)
+        
+        # 日付フィルター設定
+        row += 1
+        ttk.Label(search_frame, text="日付フィルター:", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky=tk.W, padx=(0, 15), pady=5)
+        self.date_filter_enabled_var = tk.BooleanVar()
+        ttk.Checkbutton(search_frame, text="日付フィルターを有効にする", variable=self.date_filter_enabled_var).grid(row=row, column=1, sticky=tk.W, padx=(0, 10), pady=5)
+        
+        row += 1
+        ttk.Label(search_frame, text="開始日:", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky=tk.W, padx=(0, 15), pady=5)
+        self.date_filter_start_var = tk.StringVar()
+        ttk.Entry(search_frame, textvariable=self.date_filter_start_var, width=15).grid(row=row, column=1, sticky=tk.W, padx=(0, 10), pady=5)
+        ttk.Label(search_frame, text="※YYYY-MM-DD形式", font=("Arial", 8), foreground="gray").grid(row=row, column=2, sticky=tk.W, padx=(5, 0), pady=5)
+        
+        row += 1
+        ttk.Label(search_frame, text="終了日:", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky=tk.W, padx=(0, 15), pady=5)
+        self.date_filter_end_var = tk.StringVar()
+        ttk.Entry(search_frame, textvariable=self.date_filter_end_var, width=15).grid(row=row, column=1, sticky=tk.W, padx=(0, 10), pady=5)
+        ttk.Label(search_frame, text="※YYYY-MM-DD形式", font=("Arial", 8), foreground="gray").grid(row=row, column=2, sticky=tk.W, padx=(5, 0), pady=5)
         
         # レイアウト設定
         canvas.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
@@ -248,142 +344,7 @@ class FanzaAutoGUI:
         basic_frame.columnconfigure(0, weight=1)
         basic_frame.rowconfigure(0, weight=1)
     
-    def create_search_settings_tab(self):
-        """検索設定タブの作成"""
-        search_frame = ttk.Frame(self.notebook)
-        self.notebook.add(search_frame, text="検索設定")
-        
-        # スクロール可能なキャンバス
-        canvas = tk.Canvas(search_frame)
-        scrollbar = ttk.Scrollbar(search_frame, orient="vertical", command=canvas.yview)
-        scrollable_frame = ttk.Frame(canvas)
-        
-        scrollable_frame.bind(
-            "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-        )
-        
-        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
-        canvas.configure(yscrollcommand=scrollbar.set)
-        
-        # 検索条件設定
-        search_conditions_frame = ttk.LabelFrame(scrollable_frame, text="検索条件", padding="15")
-        search_conditions_frame.grid(row=0, column=0, sticky=(tk.W, tk.E), padx=15, pady=(15, 15))
-        search_conditions_frame.columnconfigure(1, weight=1)
-        
-        row = 0
-        ttk.Label(search_conditions_frame, text="サイト:", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky=tk.W, padx=(0, 15), pady=5)
-        self.site_var = tk.StringVar()
-        site_combo = ttk.Combobox(search_conditions_frame, textvariable=self.site_var, 
-                                 values=["FANZA", "FANZA通販", "FANZA動画"], state="readonly", width=15)
-        site_combo.grid(row=row, column=1, sticky=tk.W, padx=(0, 10), pady=5)
-        ttk.Label(search_conditions_frame, text="※対象サイトを選択", font=("Arial", 8), foreground="gray").grid(row=row, column=2, sticky=tk.W, padx=(5, 0), pady=5)
-        
-        row += 1
-        ttk.Label(search_conditions_frame, text="サービス:", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky=tk.W, padx=(0, 15), pady=5)
-        self.service_var = tk.StringVar()
-        service_combo = ttk.Combobox(search_conditions_frame, textvariable=self.service_var, 
-                                    values=["デジタル", "パッケージ", "両方"], state="readonly", width=15)
-        service_combo.grid(row=row, column=1, sticky=tk.W, padx=(0, 10), pady=5)
-        ttk.Label(search_conditions_frame, text="※デジタル/パッケージ/両方", font=("Arial", 8), foreground="gray").grid(row=row, column=2, sticky=tk.W, padx=(5, 0), pady=5)
-        
-        row += 1
-        ttk.Label(search_conditions_frame, text="フロア:", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky=tk.W, padx=(0, 15), pady=5)
-        self.floor_var = tk.StringVar()
-        # フロア一覧を日本語で表示（実際の値は内部で管理）
-        self.floor_combo = ttk.Combobox(search_conditions_frame, textvariable=self.floor_var, 
-                                       values=["動画", "アニメ", "ゲーム", "電子書籍", "音楽", "ライブチャット", "写真集", "DVD", "Blu-ray", "CD", "書籍", "雑誌", "その他"], state="readonly", width=15)
-        self.floor_combo.grid(row=row, column=1, sticky=tk.W, padx=(0, 10), pady=5)
-        
-        # フロア一覧更新ボタン
-        floor_update_button = ttk.Button(search_conditions_frame, text="更新", command=self.update_floor_list, width=8)
-        floor_update_button.grid(row=row, column=2, sticky=tk.W, padx=(5, 0), pady=5)
-        
-        ttk.Label(search_conditions_frame, text="※対象フロアを選択（更新ボタンで最新情報を取得）", font=("Arial", 8), foreground="gray").grid(row=row, column=3, sticky=tk.W, padx=(5, 0), pady=5)
-        
-        row += 1
-        ttk.Label(search_conditions_frame, text="キーワード:", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky=tk.W, padx=(0, 15), pady=5)
-        self.keyword_var = tk.StringVar()
-        ttk.Entry(search_conditions_frame, textvariable=self.keyword_var, width=40).grid(row=row, column=1, sticky=(tk.W, tk.E), padx=(0, 10), pady=5)
-        ttk.Label(search_conditions_frame, text="※検索キーワード（空欄可）", font=("Arial", 8), foreground="gray").grid(row=row, column=2, sticky=tk.W, padx=(5, 0), pady=5)
-        
-        row += 1
-        ttk.Label(search_conditions_frame, text="ソート:", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky=tk.W, padx=(0, 15), pady=5)
-        self.sort_var = tk.StringVar()
-        sort_combo = ttk.Combobox(search_conditions_frame, textvariable=self.sort_var, 
-                                 values=["発売日順", "名前順", "価格順", "レビュー順", "人気順"], state="readonly", width=15)
-        sort_combo.grid(row=row, column=1, sticky=tk.W, padx=(0, 10), pady=5)
-        ttk.Label(search_conditions_frame, text="※ソート順", font=("Arial", 8), foreground="gray").grid(row=row, column=2, sticky=tk.W, padx=(5, 0), pady=5)
-        
-        row += 1
-        ttk.Label(search_conditions_frame, text="取得件数:", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky=tk.W, padx=(0, 15), pady=5)
-        self.hits_var = tk.StringVar()
-        ttk.Entry(search_conditions_frame, textvariable=self.hits_var, width=10).grid(row=row, column=1, sticky=tk.W, padx=(0, 10), pady=5)
-        ttk.Label(search_conditions_frame, text="※1回の検索で取得する件数（最大100）", font=("Arial", 8), foreground="gray").grid(row=row, column=2, sticky=tk.W, padx=(5, 0), pady=5)
-        
-        row += 1
-        ttk.Label(search_conditions_frame, text="最大画像数:", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky=tk.W, padx=(0, 15), pady=5)
-        self.maximage_var = tk.StringVar()
-        ttk.Entry(search_conditions_frame, textvariable=self.maximage_var, width=10).grid(row=row, column=1, sticky=tk.W, padx=(0, 10), pady=5)
-        ttk.Label(search_conditions_frame, text="※投稿に添付する最大画像数", font=("Arial", 8), foreground="gray").grid(row=row, column=2, sticky=tk.W, padx=(5, 0), pady=5)
-        
-        row += 1
-        ttk.Label(search_conditions_frame, text="制限フラグ:", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky=tk.W, padx=(0, 15), pady=5)
-        self.limited_flag_var = tk.StringVar()
-        limited_combo = ttk.Combobox(search_conditions_frame, textvariable=self.limited_flag_var, 
-                                    values=["制限なし", "制限あり"], state="readonly", width=15)
-        limited_combo.grid(row=row, column=1, sticky=tk.W, padx=(0, 10), pady=5)
-        ttk.Label(search_conditions_frame, text="※0: 制限なし, 1: 制限あり", font=("Arial", 8), foreground="gray").grid(row=row, column=2, sticky=tk.W, padx=(5, 0), pady=5)
-        
-        # 絞り込み設定
-        filter_frame = ttk.LabelFrame(scrollable_frame, text="絞り込み設定", padding="15")
-        filter_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), padx=15, pady=(15, 15))
-        filter_frame.columnconfigure(1, weight=1)
-        
-        row = 0
-        ttk.Label(filter_frame, text="記事タイプ:", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky=tk.W, padx=(0, 15), pady=5)
-        self.article_type_var = tk.StringVar()
-        article_type_combo = ttk.Combobox(filter_frame, textvariable=self.article_type_var, 
-                                         values=["指定なし", "女優", "ジャンル", "シリーズ"], state="readonly", width=15)
-        article_type_combo.grid(row=row, column=1, sticky=tk.W, padx=(0, 10), pady=5)
-        ttk.Label(filter_frame, text="※記事の種類で絞り込み", font=("Arial", 8), foreground="gray").grid(row=row, column=2, sticky=tk.W, padx=(5, 0), pady=5)
-        
-        row += 1
-        ttk.Label(filter_frame, text="ID絞り込み:", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky=tk.W, padx=(0, 15), pady=5)
-        self.id_filter_var = tk.StringVar()
-        ttk.Entry(filter_frame, textvariable=self.id_filter_var, width=40).grid(row=row, column=1, sticky=(tk.W, tk.E), padx=(0, 10), pady=5)
-        ttk.Label(filter_frame, text="※特定のIDで絞り込み（空欄可）", font=("Arial", 8), foreground="gray").grid(row=row, column=2, sticky=tk.W, padx=(5, 0), pady=5)
-        
-        # 発売日絞り込み設定
-        date_filter_frame = ttk.LabelFrame(scrollable_frame, text="発売日絞り込み設定", padding="15")
-        date_filter_frame.grid(row=2, column=0, sticky=(tk.W, tk.E), padx=15, pady=(15, 15))
-        date_filter_frame.columnconfigure(1, weight=1)
-        
-        row = 0
-        ttk.Label(date_filter_frame, text="発売日絞り込み:", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky=tk.W, padx=(0, 15), pady=5)
-        self.date_filter_enabled_var = tk.BooleanVar()
-        date_filter_check = ttk.Checkbutton(date_filter_frame, text="発売日で絞り込みを有効にする", 
-                                          variable=self.date_filter_enabled_var)
-        date_filter_check.grid(row=row, column=1, sticky=tk.W, padx=(0, 10), pady=5)
-        
-        row += 1
-        ttk.Label(date_filter_frame, text="開始日:", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky=tk.W, padx=(0, 15), pady=5)
-        self.date_filter_start_var = tk.StringVar()
-        ttk.Entry(date_filter_frame, textvariable=self.date_filter_start_var, width=12).grid(row=row, column=1, sticky=tk.W, padx=(0, 10), pady=5)
-        ttk.Label(date_filter_frame, text="※YYYY-MM-DD形式", font=("Arial", 8), foreground="gray").grid(row=row, column=2, sticky=tk.W, padx=(5, 0), pady=5)
-        
-        row += 1
-        ttk.Label(date_filter_frame, text="終了日:", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky=tk.W, padx=(0, 15), pady=5)
-        self.date_filter_end_var = tk.StringVar()
-        ttk.Entry(date_filter_frame, textvariable=self.date_filter_end_var, width=12).grid(row=row, column=1, sticky=tk.W, padx=(0, 10), pady=5)
-        ttk.Label(date_filter_frame, text="※YYYY-MM-DD形式", font=("Arial", 8), foreground="gray").grid(row=row, column=2, sticky=tk.W, padx=(5, 0), pady=5)
-        
-        # レイアウト設定
-        canvas.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
-        scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
-        
-        search_frame.columnconfigure(0, weight=1)
-        search_frame.rowconfigure(0, weight=1)
+
     
     def create_schedule_settings_tab(self):
         """スケジュール設定タブの作成"""
@@ -606,6 +567,10 @@ class FanzaAutoGUI:
                                    command=self.show_restore_dialog, style="Accent.TButton")
         restore_button.pack(side=tk.LEFT, padx=(0, 10))
         
+        repair_button = ttk.Button(left_buttons_frame, text="設定を修復", 
+                                  command=self.repair_settings, style="Accent.TButton")
+        repair_button.pack(side=tk.LEFT, padx=(0, 10))
+        
         # 右側のボタン
         right_buttons_frame = ttk.Frame(management_buttons_frame)
         right_buttons_frame.pack(side=tk.RIGHT, fill=tk.X)
@@ -782,6 +747,17 @@ class FanzaAutoGUI:
         setattr(self, f"post_overwrite_existing_{setting_num}_var", tk.BooleanVar())
         setattr(self, f"target_new_posts_{setting_num}_var", tk.StringVar())
         
+        # 検索設定の変数を作成
+        setattr(self, f"search_site_{setting_num}_var", tk.StringVar())
+        setattr(self, f"search_keyword_{setting_num}_var", tk.StringVar())
+        setattr(self, f"search_category_{setting_num}_var", tk.StringVar())
+        setattr(self, f"search_floor_{setting_num}_var", tk.StringVar())
+        setattr(self, f"search_service_{setting_num}_var", tk.StringVar())
+        setattr(self, f"search_sort_{setting_num}_var", tk.StringVar())
+        setattr(self, f"search_hits_{setting_num}_var", tk.StringVar())
+        setattr(self, f"search_from_date_{setting_num}_var", tk.StringVar())
+        setattr(self, f"search_to_date_{setting_num}_var", tk.StringVar())
+        
         row = 0
         ttk.Label(post_settings_frame, text="投稿タイトル:", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky=tk.W, padx=(0, 15), pady=5)
         title_var = getattr(self, f"post_title_{setting_num}_var")
@@ -872,6 +848,76 @@ class FanzaAutoGUI:
         target_entry = ttk.Entry(post_settings_frame, textvariable=target_var, width=10)
         target_entry.grid(row=row, column=1, sticky=tk.W, padx=(0, 10), pady=5)
         ttk.Label(post_settings_frame, text="※0の場合は制限なし", font=("Arial", 8), foreground="gray").grid(row=row, column=2, sticky=tk.W, padx=(5, 0), pady=5)
+        
+        # 検索設定セクション
+        row += 1
+        ttk.Separator(post_settings_frame, orient='horizontal').grid(row=row, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=15)
+        
+        row += 1
+        search_label = ttk.Label(post_settings_frame, text="検索設定", font=("Arial", 12, "bold"), foreground="blue")
+        search_label.grid(row=row, column=0, columnspan=3, sticky=tk.W, pady=(0, 15))
+        
+        row += 1
+        ttk.Label(post_settings_frame, text="検索サイト:", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky=tk.W, padx=(0, 15), pady=5)
+        search_site_var = getattr(self, f"search_site_{setting_num}_var")
+        search_site_combo = ttk.Combobox(post_settings_frame, textvariable=search_site_var, 
+                                          values=["FANZA", "DMM"], state="readonly", width=15)
+        search_site_combo.grid(row=row, column=1, sticky=tk.W, padx=(0, 10), pady=5)
+        ttk.Label(post_settings_frame, text="※検索対象のサイト", font=("Arial", 8), foreground="gray").grid(row=row, column=2, sticky=tk.W, padx=(5, 0), pady=5)
+        
+        row += 1
+        ttk.Label(post_settings_frame, text="検索キーワード:", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky=tk.W, padx=(0, 15), pady=5)
+        search_keyword_var = getattr(self, f"search_keyword_{setting_num}_var")
+        ttk.Entry(post_settings_frame, textvariable=search_keyword_var, width=30).grid(row=row, column=1, sticky=tk.W, padx=(0, 10), pady=5)
+        ttk.Label(post_settings_frame, text="※検索に使用するキーワード", font=("Arial", 8), foreground="gray").grid(row=row, column=2, sticky=tk.W, padx=(5, 0), pady=5)
+        
+        row += 1
+        ttk.Label(post_settings_frame, text="検索カテゴリ:", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky=tk.W, padx=(0, 15), pady=5)
+        search_category_var = getattr(self, f"search_category_{setting_num}_var")
+        ttk.Entry(post_settings_frame, textvariable=search_category_var, width=30).grid(row=row, column=1, sticky=tk.W, padx=(0, 10), pady=5)
+        ttk.Label(post_settings_frame, text="※検索に使用するカテゴリ", font=("Arial", 8), foreground="gray").grid(row=row, column=2, sticky=tk.W, padx=(5, 0), pady=5)
+        
+        row += 1
+        ttk.Label(post_settings_frame, text="検索フロア:", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky=tk.W, padx=(0, 15), pady=5)
+        search_floor_var = getattr(self, f"search_floor_{setting_num}_var")
+        search_floor_combo = ttk.Combobox(post_settings_frame, textvariable=search_floor_var, 
+                                           values=["videoc", "videoa", "videob", "videod"], state="readonly", width=15)
+        search_floor_combo.grid(row=row, column=1, sticky=tk.W, padx=(0, 10), pady=5)
+        ttk.Label(post_settings_frame, text="※検索対象のフロア", font=("Arial", 8), foreground="gray").grid(row=row, column=2, sticky=tk.W, padx=(5, 0), pady=5)
+        
+        row += 1
+        ttk.Label(post_settings_frame, text="検索サービス:", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky=tk.W, padx=(0, 15), pady=5)
+        search_service_var = getattr(self, f"search_service_{setting_num}_var")
+        search_service_combo = ttk.Combobox(post_settings_frame, textvariable=search_service_var, 
+                                             values=["digital", "package", "rental"], state="readonly", width=15)
+        search_service_combo.grid(row=row, column=1, sticky=tk.W, padx=(0, 10), pady=5)
+        ttk.Label(post_settings_frame, text="※検索対象のサービス", font=("Arial", 8), foreground="gray").grid(row=row, column=2, sticky=tk.W, padx=(5, 0), pady=5)
+        
+        row += 1
+        ttk.Label(post_settings_frame, text="検索ソート順:", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky=tk.W, padx=(0, 15), pady=5)
+        search_sort_var = getattr(self, f"search_sort_{setting_num}_var")
+        search_sort_combo = ttk.Combobox(post_settings_frame, textvariable=search_sort_var, 
+                                          values=["date", "review", "price", "popular"], state="readonly", width=15)
+        search_sort_combo.grid(row=row, column=1, sticky=tk.W, padx=(0, 10), pady=5)
+        ttk.Label(post_settings_frame, text="※検索結果のソート順", font=("Arial", 8), foreground="gray").grid(row=row, column=2, sticky=tk.W, padx=(5, 0), pady=5)
+        
+        row += 1
+        ttk.Label(post_settings_frame, text="検索結果数:", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky=tk.W, padx=(0, 15), pady=5)
+        search_hits_var = getattr(self, f"search_hits_{setting_num}_var")
+        ttk.Entry(post_settings_frame, textvariable=search_hits_var, width=10).grid(row=row, column=1, sticky=tk.W, padx=(0, 10), pady=5)
+        ttk.Label(post_settings_frame, text="※取得する検索結果の数", font=("Arial", 8), foreground="gray").grid(row=row, column=2, sticky=tk.W, padx=(5, 0), pady=5)
+        
+        row += 1
+        ttk.Label(post_settings_frame, text="検索開始日:", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky=tk.W, padx=(0, 15), pady=5)
+        search_from_date_var = getattr(self, f"search_from_date_{setting_num}_var")
+        ttk.Entry(post_settings_frame, textvariable=search_from_date_var, width=15).grid(row=row, column=1, sticky=tk.W, padx=(0, 10), pady=5)
+        ttk.Label(post_settings_frame, text="※YYYY-MM-DD形式", font=("Arial", 8), foreground="gray").grid(row=row, column=2, sticky=tk.W, padx=(5, 0), pady=5)
+        
+        row += 1
+        ttk.Label(post_settings_frame, text="検索終了日:", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky=tk.W, padx=(0, 15), pady=5)
+        search_to_date_var = getattr(self, f"search_to_date_{setting_num}_var")
+        ttk.Entry(post_settings_frame, textvariable=search_to_date_var, width=15).grid(row=row, column=1, sticky=tk.W, padx=(0, 10), pady=5)
+        ttk.Label(post_settings_frame, text="※YYYY-MM-DD形式", font=("Arial", 8), foreground="gray").grid(row=row, column=2, sticky=tk.W, padx=(5, 0), pady=5)
         
         # レイアウト設定
         canvas.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
@@ -1019,6 +1065,18 @@ class FanzaAutoGUI:
                 self.keyword_var.set("")
             if hasattr(self, 'sort_var') and not self.sort_var.get():
                 self.sort_var.set("date")
+            if hasattr(self, 'article_type_var') and not self.article_type_var.get():
+                self.article_type_var.set("")
+            if hasattr(self, 'id_filter_var') and not self.id_filter_var.get():
+                self.id_filter_var.set("")
+            if hasattr(self, 'date_filter_enabled_var') and not self.date_filter_enabled_var.get():
+                self.date_filter_enabled_var.set(False)
+            if hasattr(self, 'date_filter_start_var') and not self.date_filter_start_var.get():
+                self.date_filter_start_var.set("")
+            if hasattr(self, 'date_filter_end_var') and not self.date_filter_end_var.get():
+                self.date_filter_end_var.set("")
+            
+
         
             # スケジュール設定
             if hasattr(self, 'schedule_enabled_var') and not self.schedule_enabled_var.get():
@@ -1034,11 +1092,8 @@ class FanzaAutoGUI:
             if hasattr(self, 'custom_cron_var') and not self.custom_cron_var.get():
                 self.custom_cron_var.set("")
         
-            # 投稿設定1から4のデフォルト値は別メソッドで設定
-            try:
-                self.set_default_post_settings()
-            except Exception as e:
-                print(f"投稿設定デフォルト値設定エラー: {e}")
+                    # 投稿設定1から4のデフォルト値は設定読み込み後に設定（初期化時は設定しない）
+        # self.set_default_post_settings()  # 起動時の初期化は削除
         
             # 共通設定のデフォルト値は別メソッドで設定
             try:
@@ -1089,6 +1144,17 @@ class FanzaAutoGUI:
             self.post_overwrite_existing_1_var.set(False)
             self.target_new_posts_1_var.set("10")
             
+            # 投稿設定1の検索設定のデフォルト値
+            self.search_site_1_var.set("FANZA")
+            self.search_keyword_1_var.set("")
+            self.search_category_1_var.set("")
+            self.search_floor_1_var.set("videoc")
+            self.search_service_1_var.set("digital")
+            self.search_sort_1_var.set("date")
+            self.search_hits_1_var.set("30")
+            self.search_from_date_1_var.set("")
+            self.search_to_date_1_var.set("")
+            
             # 投稿設定2のデフォルト値
             self.post_title_2_var.set("[title]")
             self.post_content_text2.delete("1.0", tk.END)
@@ -1103,6 +1169,17 @@ class FanzaAutoGUI:
             self.post_hour_2_var.set("h09")
             self.post_overwrite_existing_2_var.set(False)
             self.target_new_posts_2_var.set("10")
+            
+            # 投稿設定2の検索設定のデフォルト値
+            self.search_site_2_var.set("FANZA")
+            self.search_keyword_2_var.set("")
+            self.search_category_2_var.set("")
+            self.search_floor_2_var.set("videoc")
+            self.search_service_2_var.set("digital")
+            self.search_sort_2_var.set("date")
+            self.search_hits_2_var.set("20")
+            self.search_from_date_2_var.set("")
+            self.search_to_date_2_var.set("")
             
             # 投稿設定3のデフォルト値
             self.post_title_3_var.set("[title]")
@@ -1119,6 +1196,17 @@ class FanzaAutoGUI:
             self.post_overwrite_existing_3_var.set(False)
             self.target_new_posts_3_var.set("10")
             
+            # 投稿設定3の検索設定のデフォルト値
+            self.search_site_3_var.set("FANZA")
+            self.search_keyword_3_var.set("")
+            self.search_category_3_var.set("")
+            self.search_floor_3_var.set("videoc")
+            self.search_service_3_var.set("digital")
+            self.search_sort_3_var.set("review")
+            self.search_hits_3_var.set("15")
+            self.search_from_date_3_var.set("")
+            self.search_to_date_3_var.set("")
+            
             # 投稿設定4のデフォルト値
             self.post_title_4_var.set("[title]")
             self.post_content_text4.delete("1.0", tk.END)
@@ -1133,6 +1221,17 @@ class FanzaAutoGUI:
             self.post_hour_4_var.set("h09")
             self.post_overwrite_existing_4_var.set(False)
             self.target_new_posts_4_var.set("10")
+            
+            # 投稿設定4の検索設定のデフォルト値
+            self.search_site_4_var.set("FANZA")
+            self.search_keyword_4_var.set("")
+            self.search_category_4_var.set("")
+            self.search_floor_4_var.set("videoc")
+            self.search_service_4_var.set("digital")
+            self.search_sort_4_var.set("price")
+            self.search_hits_4_var.set("25")
+            self.search_from_date_4_var.set("")
+            self.search_to_date_4_var.set("")
             
             self.log_message("投稿設定1から4のデフォルト値を設定しました")
             
@@ -1286,34 +1385,28 @@ class FanzaAutoGUI:
             
             # フロア設定を日本語表示に変換
             floor_value = self.settings.floor or "videoc"
-            if floor_value == "videoc":
-                self.floor_var.set("動画")
-            elif floor_value == "videoa":
-                self.floor_var.set("アニメ")
-            elif floor_value == "videob":
-                self.floor_var.set("ゲーム")
-            elif floor_value == "videod":
-                self.floor_var.set("電子書籍")
-            elif floor_value == "videoe":
-                self.floor_var.set("音楽")
-            elif floor_value == "videof":
-                self.floor_var.set("ライブチャット")
-            elif floor_value == "videog":
-                self.floor_var.set("写真集")
-            elif floor_value == "videoh":
-                self.floor_var.set("DVD")
-            elif floor_value == "videoi":
-                self.floor_var.set("Blu-ray")
-            elif floor_value == "videoj":
-                self.floor_var.set("CD")
-            elif floor_value == "videok":
-                self.floor_var.set("書籍")
-            elif floor_value == "videol":
-                self.floor_var.set("雑誌")
-            elif floor_value == "videom":
-                self.floor_var.set("その他")  # その他の場合はvideomを使用
+            # フロアマッピングが利用可能な場合はそれを使用
+            if hasattr(self, 'floor_mapping'):
+                # 逆引きでフロア名を取得
+                floor_name = None
+                for name, code in self.floor_mapping.items():
+                    if code == floor_value:
+                        floor_name = name
+                        break
+                
+                if floor_name:
+                    self.floor_var.set(floor_name)
+                    self.log_message(f"フロア設定を読み込み: {floor_value} -> {floor_name}")
+                else:
+                    # フロアマッピングにない場合は従来の変換処理を使用
+                    floor_name = self._convert_floor_code_to_name(floor_value)
+                    self.floor_var.set(floor_name)
+                    self.log_message(f"フロア設定を読み込み: {floor_value} -> {floor_name} (従来の変換処理)")
             else:
-                self.floor_var.set("videoc")  # デフォルト値
+                # フロアマッピングがない場合は従来の変換処理を使用
+                floor_name = self._convert_floor_code_to_name(floor_value)
+                self.floor_var.set(floor_name)
+                self.log_message(f"フロア設定を読み込み: {floor_value} -> {floor_name} (従来の変換処理)")
             
             # 取得件数を日本語表示に変換
             hits_value = str(self.settings.hits or "10")
@@ -1359,12 +1452,22 @@ class FanzaAutoGUI:
             self.keyword_var.set(self.settings.keyword or "")
             self.maximage_var.set(str(self.settings.maximage or "1"))
             
+            # 新しく追加した変数の読み込み
+            self.id_filter_var.set(self.settings.article_id or "")
+            self.date_filter_enabled_var.set(getattr(self.settings, 'date_filter_enabled', False))
+            self.date_filter_start_var.set(getattr(self.settings, 'date_filter_start', "") or "")
+            self.date_filter_end_var.set(getattr(self.settings, 'date_filter_end', "") or "")
+            
             # スケジュール設定の読み込み（環境変数から、なければデフォルト値）
+            schedule_interval_value = os.getenv("SCHEDULE_INTERVAL", "daily")
+            schedule_day_value = os.getenv("SCHEDULE_DAY", "monday")
+            schedule_date_value = os.getenv("SCHEDULE_DATE", "1")
+            
             self.schedule_enabled_var.set(os.getenv("SCHEDULE_ENABLED", "false").lower() == "true")
-            self.schedule_interval_var.set(os.getenv("SCHEDULE_INTERVAL", "毎日"))
-            self.schedule_time_var.set(os.getenv("SCHEDULE_TIME", "00:00"))
-            self.schedule_day_var.set(os.getenv("SCHEDULE_DAY", "毎日"))
-            self.schedule_date_var.set(os.getenv("SCHEDULE_DATE", ""))
+            self.schedule_interval_var.set(self._convert_schedule_interval_value_to_display(schedule_interval_value))
+            self.schedule_time_var.set(os.getenv("SCHEDULE_TIME", "09:00"))
+            self.schedule_day_var.set(self._convert_schedule_day_value_to_display(schedule_day_value))
+            self.schedule_date_var.set(self._convert_schedule_date_value_to_display(schedule_date_value))
             self.custom_cron_var.set(os.getenv("CUSTOM_CRON", ""))
             
             # 投稿設定1から4の読み込み（SettingsManagerから）
@@ -1372,454 +1475,76 @@ class FanzaAutoGUI:
                 post_settings = self.settings_manager.load_post_settings()
                 
                 # post_settingsキーから投稿設定を取得
-                if "post_settings" in post_settings:
+                if post_settings and "post_settings" in post_settings and post_settings["post_settings"]:
                     settings_data = post_settings["post_settings"]
                     
-                    # 投稿設定1
-                    if "1" in settings_data:
-                        setting = settings_data["1"]
-                        self.post_title_1_var.set(setting.get("title", "[title]"))
-                        self.post_content_text1.delete("1.0", tk.END)
-                        content = setting.get("content", "[title]の詳細情報です。設定1")
-                        self.post_content_text1.insert("1.0", content)
-                        
-                        # アイキャッチ設定を日本語表示に変換
-                        eyecatch_value = setting.get("eyecatch", "sample")
-                        if eyecatch_value == "sample":
-                            self.post_eyecatch_1_var.set("サンプル画像")
-                        elif eyecatch_value == "package":
-                            self.post_eyecatch_1_var.set("パッケージ画像")
-                        elif eyecatch_value == "1":
-                            self.post_eyecatch_1_var.set("画像1")
-                        elif eyecatch_value == "99":
-                            self.post_eyecatch_1_var.set("画像99")
-                        else:
-                            self.post_eyecatch_1_var.set(eyecatch_value)
-                        
-                        # 動画サイズ設定を日本語表示に変換
-                        movie_size_value = setting.get("movie_size", "auto")
-                        if movie_size_value == "auto":
-                            self.post_movie_size_1_var.set("自動")
-                        elif movie_size_value == "720":
-                            self.post_movie_size_1_var.set("720p")
-                        elif movie_size_value == "600":
-                            self.post_movie_size_1_var.set("600p")
-                        elif movie_size_value == "560":
-                            self.post_movie_size_1_var.set("560p")
-                        else:
-                            self.post_movie_size_1_var.set(movie_size_value)
-                        
-                        # ポスター設定を日本語表示に変換
-                        poster_value = setting.get("poster", "package")
-                        if poster_value == "package":
-                            self.post_poster_1_var.set("パッケージ画像")
-                        elif poster_value == "sample":
-                            self.post_poster_1_var.set("サンプル画像")
-                        elif poster_value == "none":
-                            self.post_poster_1_var.set("なし")
-                        else:
-                            self.post_poster_1_var.set(poster_value)
-                        
-                        # カテゴリ設定を日本語表示に変換
-                        category_value = setting.get("category", "jan")
-                        if category_value == "jan":
-                            self.post_category_1_var.set("JAN")
-                        elif category_value == "act":
-                            self.post_category_1_var.set("女優")
-                        elif category_value == "director":
-                            self.post_category_1_var.set("監督")
-                        elif category_value == "seri":
-                            self.post_category_1_var.set("シリーズ")
-                        else:
-                            self.post_category_1_var.set(category_value)
-                        
-                        # ソート設定を日本語表示に変換
-                        sort_value = setting.get("sort", "rank")
-                        if sort_value == "rank":
-                            self.post_sort_1_var.set("人気順")
-                        elif sort_value == "date":
-                            self.post_sort_1_var.set("発売日順")
-                        elif sort_value == "review":
-                            self.post_sort_1_var.set("レビュー順")
-                        elif sort_value == "price":
-                            self.post_sort_1_var.set("価格順")
-                        else:
-                            self.post_sort_1_var.set(sort_value)
-                        
-                        # 記事設定を日本語表示に変換
-                        article_value = setting.get("article", "")
-                        if article_value == "":
-                            self.post_article_1_var.set("指定なし")
-                        elif article_value == "actress":
-                            self.post_article_1_var.set("女優")
-                        elif article_value == "genre":
-                            self.post_article_1_var.set("ジャンル")
-                        elif article_value == "series":
-                            self.post_article_1_var.set("シリーズ")
-                        else:
-                            self.post_article_1_var.set(article_value)
-                        
-                        # ステータス設定を日本語表示に変換
-                        status_value = setting.get("status", "publish")
-                        if status_value == "publish":
-                            self.post_status_1_var.set("公開")
-                        elif status_value == "draft":
-                            self.post_status_1_var.set("下書き")
-                        else:
-                            self.post_status_1_var.set(status_value)
-                        
-                        # 時間設定を日本語表示に変換
-                        hour_value = setting.get("hour", "h09")
-                        if hour_value == "h09":
-                            self.post_hour_1_var.set("09:00")
-                        elif hour_value == "h12":
-                            self.post_hour_1_var.set("12:00")
-                        elif hour_value == "h18":
-                            self.post_hour_1_var.set("18:00")
-                        elif hour_value == "h21":
-                            self.post_hour_1_var.set("21:00")
-                        else:
-                            self.post_hour_1_var.set(hour_value)
-                        
-                        self.post_overwrite_existing_1_var.set(setting.get("overwrite_existing", False))
-                        self.target_new_posts_1_var.set(str(setting.get("target_new_posts", 10)))
+                    # 投稿設定1から4を順次読み込み
+                    for i in range(1, 5):
+                        setting_id = str(i)
+                        if setting_id in settings_data:
+                            setting = settings_data[setting_id]
+                            
+                            # 基本設定の読み込み
+                            getattr(self, f"post_title_{i}_var").set(setting.get("title", f"[title]"))
+                            content_text = getattr(self, f"post_content_text{i}")
+                            content_text.delete("1.0", tk.END)
+                            content = setting.get("content", f"[title]の詳細情報です。設定{i}")
+                            content_text.insert("1.0", content)
+                            
+                            # 各種設定を日本語表示に変換して読み込み
+                            eyecatch_value = setting.get("eyecatch", "sample")
+                            getattr(self, f"post_eyecatch_{i}_var").set(self._convert_eyecatch_value_to_display(eyecatch_value))
+                            
+                            movie_size_value = setting.get("movie_size", "auto")
+                            getattr(self, f"post_movie_size_{i}_var").set(self._convert_movie_size_value_to_display(movie_size_value))
+                            
+                            poster_value = setting.get("poster", "package")
+                            getattr(self, f"post_poster_{i}_var").set(self._convert_poster_value_to_display(poster_value))
+                            
+                            category_value = setting.get("category", "jan")
+                            getattr(self, f"post_category_{i}_var").set(self._convert_category_value_to_display(category_value))
+                            
+                            sort_value = setting.get("sort", "rank")
+                            getattr(self, f"post_sort_{i}_var").set(self._convert_post_sort_value_to_display(sort_value))
+                            
+                            article_value = setting.get("article", "")
+                            getattr(self, f"post_article_{i}_var").set(self._convert_post_article_value_to_display(article_value))
+                            
+                            status_value = setting.get("status", "publish")
+                            getattr(self, f"post_status_{i}_var").set(self._convert_status_value_to_display(status_value))
+                            
+                            hour_value = setting.get("hour", "h09")
+                            getattr(self, f"post_hour_{i}_var").set(self._convert_hour_value_to_display(hour_value))
+                            
+                            getattr(self, f"post_overwrite_existing_{i}_var").set(setting.get("overwrite_existing", False))
+                            getattr(self, f"target_new_posts_{i}_var").set(str(setting.get("target_new_posts", 10)))
+                            
+                            # 検索設定の読み込み
+                            getattr(self, f"search_site_{i}_var").set(setting.get("search_site", "FANZA"))
+                            getattr(self, f"search_keyword_{i}_var").set(setting.get("search_keyword", ""))
+                            getattr(self, f"search_category_{i}_var").set(setting.get("search_category", ""))
+                            getattr(self, f"search_floor_{i}_var").set(setting.get("search_floor", "videoc"))
+                            getattr(self, f"search_service_{i}_var").set(setting.get("search_service", "digital"))
+                            getattr(self, f"search_sort_{i}_var").set(setting.get("search_sort", "date"))
+                            getattr(self, f"search_hits_{i}_var").set(str(setting.get("search_hits", "30")))
+                            getattr(self, f"search_from_date_{i}_var").set(setting.get("search_from_date", ""))
+                            getattr(self, f"search_to_date_{i}_var").set(setting.get("search_to_date", ""))
                     
-                    # 投稿設定2
-                    if "2" in settings_data:
-                        setting = settings_data["2"]
-                        self.post_title_2_var.set(setting.get("title", "[title]"))
-                        self.post_content_text2.delete("1.0", tk.END)
-                        content = setting.get("content", "[title]の詳細情報です。設定2")
-                        self.post_content_text2.insert("1.0", content)
-                        
-                        # アイキャッチ設定を日本語表示に変換
-                        eyecatch_value = setting.get("eyecatch", "sample")
-                        if eyecatch_value == "sample":
-                            self.post_eyecatch_2_var.set("サンプル画像")
-                        elif eyecatch_value == "package":
-                            self.post_eyecatch_2_var.set("パッケージ画像")
-                        elif eyecatch_value == "1":
-                            self.post_eyecatch_2_var.set("画像1")
-                        elif eyecatch_value == "99":
-                            self.post_eyecatch_2_var.set("画像99")
-                        else:
-                            self.post_eyecatch_2_var.set(eyecatch_value)
-                        
-                        # 動画サイズ設定を日本語表示に変換
-                        movie_size_value = setting.get("movie_size", "auto")
-                        if movie_size_value == "auto":
-                            self.post_movie_size_2_var.set("自動")
-                        elif movie_size_value == "720":
-                            self.post_movie_size_2_var.set("720p")
-                        elif movie_size_value == "600":
-                            self.post_movie_size_2_var.set("600p")
-                        elif movie_size_value == "560":
-                            self.post_movie_size_2_var.set("560p")
-                        else:
-                            self.post_movie_size_2_var.set(movie_size_value)
-                        
-                        # ポスター設定を日本語表示に変換
-                        poster_value = setting.get("poster", "package")
-                        if poster_value == "package":
-                            self.post_poster_2_var.set("パッケージ画像")
-                        elif poster_value == "sample":
-                            self.post_poster_2_var.set("サンプル画像")
-                        elif poster_value == "none":
-                            self.post_poster_2_var.set("なし")
-                        else:
-                            self.post_poster_2_var.set(poster_value)
-                        
-                        # カテゴリ設定を日本語表示に変換
-                        category_value = setting.get("category", "jan")
-                        if category_value == "jan":
-                            self.post_category_2_var.set("JAN")
-                        elif category_value == "act":
-                            self.post_category_2_var.set("女優")
-                        elif category_value == "director":
-                            self.post_category_2_var.set("監督")
-                        elif category_value == "seri":
-                            self.post_category_2_var.set("シリーズ")
-                        else:
-                            self.post_category_2_var.set(category_value)
-                        
-                        # ソート設定を日本語表示に変換
-                        sort_value = setting.get("sort", "rank")
-                        if sort_value == "rank":
-                            self.post_sort_2_var.set("人気順")
-                        elif sort_value == "date":
-                            self.post_sort_2_var.set("発売日順")
-                        elif sort_value == "review":
-                            self.post_sort_2_var.set("レビュー順")
-                        elif sort_value == "price":
-                            self.post_sort_2_var.set("価格順")
-                        else:
-                            self.post_sort_2_var.set(sort_value)
-                        
-                        # 記事設定を日本語表示に変換
-                        article_value = setting.get("article", "")
-                        if article_value == "":
-                            self.post_article_2_var.set("指定なし")
-                        elif article_value == "actress":
-                            self.post_article_2_var.set("女優")
-                        elif article_value == "genre":
-                            self.post_article_2_var.set("ジャンル")
-                        elif article_value == "series":
-                            self.post_article_2_var.set("シリーズ")
-                        else:
-                            self.post_article_2_var.set(article_value)
-                        
-                        # ステータス設定を日本語表示に変換
-                        status_value = setting.get("status", "publish")
-                        if status_value == "publish":
-                            self.post_status_2_var.set("公開")
-                        elif status_value == "draft":
-                            self.post_status_2_var.set("下書き")
-                        else:
-                            self.post_status_2_var.set(status_value)
-                        
-                        # 時間設定を日本語表示に変換
-                        hour_value = setting.get("hour", "h09")
-                        if hour_value == "h09":
-                            self.post_hour_2_var.set("09:00")
-                        elif hour_value == "h12":
-                            self.post_hour_2_var.set("12:00")
-                        elif hour_value == "h18":
-                            self.post_hour_2_var.set("18:00")
-                        elif hour_value == "h21":
-                            self.post_hour_2_var.set("21:00")
-                        else:
-                            self.post_hour_2_var.set(hour_value)
-                        
-                        self.post_overwrite_existing_2_var.set(setting.get("overwrite_existing", False))
-                        self.target_new_posts_2_var.set(str(setting.get("target_new_posts", 10)))
-                    
-                    # 投稿設定3
-                    if "3" in settings_data:
-                        setting = settings_data["3"]
-                        self.post_title_3_var.set(setting.get("title", "[title]"))
-                        self.post_content_text3.delete("1.0", tk.END)
-                        content = setting.get("content", "[title]の詳細情報です。設定3")
-                        self.post_content_text3.insert("1.0", content)
-                        
-                        # アイキャッチ設定を日本語表示に変換
-                        eyecatch_value = setting.get("eyecatch", "sample")
-                        if eyecatch_value == "sample":
-                            self.post_eyecatch_3_var.set("サンプル画像")
-                        elif eyecatch_value == "package":
-                            self.post_eyecatch_3_var.set("パッケージ画像")
-                        elif eyecatch_value == "1":
-                            self.post_eyecatch_3_var.set("画像1")
-                        elif eyecatch_value == "99":
-                            self.post_eyecatch_3_var.set("画像99")
-                        else:
-                            self.post_eyecatch_3_var.set(eyecatch_value)
-                        
-                        # 動画サイズ設定を日本語表示に変換
-                        movie_size_value = setting.get("movie_size", "auto")
-                        if movie_size_value == "auto":
-                            self.post_movie_size_3_var.set("自動")
-                        elif movie_size_value == "720":
-                            self.post_movie_size_3_var.set("720p")
-                        elif movie_size_value == "600":
-                            self.post_movie_size_3_var.set("600p")
-                        elif movie_size_value == "560":
-                            self.post_movie_size_3_var.set("560p")
-                        else:
-                            self.post_movie_size_3_var.set(movie_size_value)
-                        
-                        # ポスター設定を日本語表示に変換
-                        poster_value = setting.get("poster", "package")
-                        if poster_value == "package":
-                            self.post_poster_3_var.set("パッケージ画像")
-                        elif poster_value == "sample":
-                            self.post_poster_3_var.set("サンプル画像")
-                        elif poster_value == "none":
-                            self.post_poster_3_var.set("なし")
-                        else:
-                            self.post_poster_3_var.set(poster_value)
-                        
-                        # カテゴリ設定を日本語表示に変換
-                        category_value = setting.get("category", "jan")
-                        if category_value == "jan":
-                            self.post_category_3_var.set("JAN")
-                        elif category_value == "act":
-                            self.post_category_3_var.set("女優")
-                        elif category_value == "director":
-                            self.post_category_3_var.set("監督")
-                        elif category_value == "seri":
-                            self.post_category_3_var.set("シリーズ")
-                        else:
-                            self.post_category_3_var.set(category_value)
-                        
-                        # ソート設定を日本語表示に変換
-                        sort_value = setting.get("sort", "rank")
-                        if sort_value == "rank":
-                            self.post_sort_3_var.set("人気順")
-                        elif sort_value == "date":
-                            self.post_sort_3_var.set("発売日順")
-                        elif sort_value == "review":
-                            self.post_sort_3_var.set("レビュー順")
-                        elif sort_value == "price":
-                            self.post_sort_3_var.set("価格順")
-                        else:
-                            self.post_sort_3_var.set(sort_value)
-                        
-                        # 記事設定を日本語表示に変換
-                        article_value = setting.get("article", "")
-                        if article_value == "":
-                            self.post_article_3_var.set("指定なし")
-                        elif article_value == "actress":
-                            self.post_article_3_var.set("女優")
-                        elif article_value == "genre":
-                            self.post_article_3_var.set("ジャンル")
-                        elif article_value == "series":
-                            self.post_article_3_var.set("シリーズ")
-                        else:
-                            self.post_article_3_var.set(article_value)
-                        
-                        # ステータス設定を日本語表示に変換
-                        status_value = setting.get("status", "publish")
-                        if status_value == "publish":
-                            self.post_status_3_var.set("公開")
-                        elif status_value == "draft":
-                            self.post_status_3_var.set("下書き")
-                        else:
-                            self.post_status_3_var.set(status_value)
-                        
-                        # 時間設定を日本語表示に変換
-                        hour_value = setting.get("hour", "h09")
-                        if hour_value == "h09":
-                            self.post_hour_3_var.set("09:00")
-                        elif hour_value == "h12":
-                            self.post_hour_3_var.set("12:00")
-                        elif hour_value == "h18":
-                            self.post_hour_3_var.set("18:00")
-                        elif hour_value == "h21":
-                            self.post_hour_3_var.set("21:00")
-                        else:
-                            self.post_hour_3_var.set(hour_value)
-                        
-                        self.post_overwrite_existing_3_var.set(setting.get("overwrite_existing", False))
-                        self.target_new_posts_3_var.set(str(setting.get("target_new_posts", 10)))
-                    
-                    # 投稿設定4
-                    if "4" in settings_data:
-                        setting = settings_data["4"]
-                        self.post_title_4_var.set(setting.get("title", "[title]"))
-                        self.post_content_text4.delete("1.0", tk.END)
-                        content = setting.get("content", "[title]の詳細情報です。設定4")
-                        self.post_content_text4.insert("1.0", content)
-                        
-                        # アイキャッチ設定を日本語表示に変換
-                        eyecatch_value = setting.get("eyecatch", "sample")
-                        if eyecatch_value == "sample":
-                            self.post_eyecatch_4_var.set("サンプル画像")
-                        elif eyecatch_value == "package":
-                            self.post_eyecatch_4_var.set("パッケージ画像")
-                        elif eyecatch_value == "1":
-                            self.post_eyecatch_4_var.set("画像1")
-                        elif eyecatch_value == "99":
-                            self.post_eyecatch_4_var.set("画像99")
-                        else:
-                            self.post_eyecatch_4_var.set(eyecatch_value)
-                        
-                        # 動画サイズ設定を日本語表示に変換
-                        movie_size_value = setting.get("movie_size", "auto")
-                        if movie_size_value == "auto":
-                            self.post_movie_size_4_var.set("自動")
-                        elif movie_size_value == "720":
-                            self.post_movie_size_4_var.set("720p")
-                        elif movie_size_value == "600":
-                            self.post_movie_size_4_var.set("600p")
-                        elif movie_size_value == "560":
-                            self.post_movie_size_4_var.set("560p")
-                        else:
-                            self.post_movie_size_4_var.set(movie_size_value)
-                        
-                        # ポスター設定を日本語表示に変換
-                        poster_value = setting.get("poster", "package")
-                        if poster_value == "package":
-                            self.post_poster_4_var.set("パッケージ画像")
-                        elif poster_value == "sample":
-                            self.post_poster_4_var.set("サンプル画像")
-                        elif poster_value == "none":
-                            self.post_poster_4_var.set("なし")
-                        else:
-                            self.post_poster_4_var.set(poster_value)
-                        
-                        # カテゴリ設定を日本語表示に変換
-                        category_value = setting.get("category", "jan")
-                        if category_value == "jan":
-                            self.post_category_4_var.set("JAN")
-                        elif category_value == "act":
-                            self.post_category_4_var.set("女優")
-                        elif category_value == "director":
-                            self.post_category_4_var.set("監督")
-                        elif category_value == "seri":
-                            self.post_category_4_var.set("シリーズ")
-                        else:
-                            self.post_category_4_var.set(category_value)
-                        
-                        # ソート設定を日本語表示に変換
-                        sort_value = setting.get("sort", "rank")
-                        if sort_value == "rank":
-                            self.post_sort_4_var.set("人気順")
-                        elif sort_value == "date":
-                            self.post_sort_4_var.set("発売日順")
-                        elif sort_value == "review":
-                            self.post_sort_4_var.set("レビュー順")
-                        elif sort_value == "price":
-                            self.post_sort_4_var.set("価格順")
-                        else:
-                            self.post_sort_4_var.set(sort_value)
-                        
-                        # 記事設定を日本語表示に変換
-                        article_value = setting.get("article", "")
-                        if article_value == "":
-                            self.post_article_4_var.set("指定なし")
-                        elif article_value == "actress":
-                            self.post_article_4_var.set("女優")
-                        elif article_value == "genre":
-                            self.post_article_4_var.set("ジャンル")
-                        elif article_value == "series":
-                            self.post_article_4_var.set("シリーズ")
-                        else:
-                            self.post_article_4_var.set(article_value)
-                        
-                        # ステータス設定を日本語表示に変換
-                        status_value = setting.get("status", "publish")
-                        if status_value == "publish":
-                            self.post_status_4_var.set("公開")
-                        elif status_value == "draft":
-                            self.post_status_4_var.set("下書き")
-                        else:
-                            self.post_status_4_var.set(status_value)
-                        
-                        # 時間設定を日本語表示に変換
-                        hour_value = setting.get("hour", "h09")
-                        if hour_value == "h09":
-                            self.post_hour_4_var.set("09:00")
-                        elif hour_value == "h12":
-                            self.post_hour_4_var.set("12:00")
-                        elif hour_value == "h18":
-                            self.post_hour_4_var.set("18:00")
-                        elif hour_value == "h21":
-                            self.post_hour_4_var.set("21:00")
-                        else:
-                            self.post_hour_4_var.set(hour_value)
-                        
-                        self.post_overwrite_existing_4_var.set(setting.get("overwrite_existing", False))
-                        self.target_new_posts_4_var.set(str(setting.get("target_new_posts", 10)))
-                    
-                    self.log_message("投稿設定1から4を読み込みました")
+                    self.log_message("投稿設定1から4を正常に読み込みました")
                 else:
-                    self.log_message("投稿設定が見つかりません。デフォルト値を設定します。")
+                    self.log_message("投稿設定が見つかりません。初回起動のため、デフォルト値を設定します。")
+                    # 初回起動時のみデフォルト値を設定
                     self.set_default_post_settings()
+                    self.log_message("デフォルト値の設定が完了しました")
                 
             except Exception as e:
                 self.log_message(f"投稿設定読み込みエラー: {e}")
-                # エラーが発生した場合はデフォルト値を設定
-                self.set_default_post_settings()
+                # エラーが発生した場合でも、既存の設定を保持する
+                # 完全に初期化するのではなく、部分的な修正のみ行う
+                self.log_message("投稿設定の読み込みに失敗しましたが、既存の設定を保持します")
+                # エラーの詳細をログに記録
+                import traceback
+                self.log_message(f"エラー詳細: {traceback.format_exc()}")
             
             # 共通設定の読み込み（環境変数から、なければデフォルト値）
             try:
@@ -1833,7 +1558,11 @@ class FanzaAutoGUI:
                 self.affiliate2_text_var.set(os.getenv("AFFILIATE2_TEXT", "購入する"))
                 self.affiliate2_color_var.set(os.getenv("AFFILIATE2_COLOR", "#FFFFFF"))
                 self.affiliate2_bg_var.set(os.getenv("AFFILIATE2_BG", "#4ECDC4"))
-                self.post_date_setting_var.set(os.getenv("POST_DATE_SETTING", "本日"))
+                
+                # 投稿日設定を日本語表示に変換
+                post_date_setting_value = os.getenv("POST_DATE_SETTING", "today")
+                self.post_date_setting_var.set(self._convert_post_date_value_to_display(post_date_setting_value))
+                
                 self.random_text1_var.set(os.getenv("RANDOM_TEXT1", ""))
                 self.random_text2_var.set(os.getenv("RANDOM_TEXT2", ""))
                 self.random_text3_var.set(os.getenv("RANDOM_TEXT3", ""))
@@ -1891,6 +1620,9 @@ class FanzaAutoGUI:
                 self.log_message(f"設定を.envファイルから読み込みました: {env_file_path}")
             else:
                 self.log_message("設定をデフォルト値で初期化しました")
+            
+            # フロア情報表示を更新
+            self.update_floor_info_display()
                 
         except Exception as e:
             self.log_message(f"設定読み込みエラー: {e}")
@@ -1900,541 +1632,103 @@ class FanzaAutoGUI:
     def save_settings(self):
         """設定を保存する"""
         try:
-            # 設定値を取得（日本語表示から実際の値に変換）
-            site_value = self.site_var.get()
-            if "FANZA" in site_value:
-                site_value = "FANZA"
-            elif "DMM" in site_value:
-                site_value = "DMM"
+            self.log_message("設定保存を開始します...")
             
-            service_value = self.service_var.get()
-            if "digital" in service_value:
-                service_value = "digital"
-            elif "mono" in service_value:
-                service_value = "mono"
-            
-            floor_value = self.floor_var.get()
-            # フロアマッピングが利用可能な場合はそれを使用
-            if hasattr(self, 'floor_mapping') and floor_value in self.floor_mapping:
-                floor_value = self.floor_mapping[floor_value]
-            else:
-                # フロアマッピングがない場合は従来の変換処理を使用
-                if floor_value == "動画":
-                    floor_value = "videoc"
-                elif floor_value == "アニメ":
-                    floor_value = "videoa"
-                elif floor_value == "ゲーム":
-                    floor_value = "videob"
-                elif floor_value == "電子書籍":
-                    floor_value = "videod"
-                elif floor_value == "音楽":
-                    floor_value = "videoe"
-                elif floor_value == "ライブチャット":
-                    floor_value = "videof"
-                elif floor_value == "写真集":
-                    floor_value = "videog"
-                elif floor_value == "DVD":
-                    floor_value = "videoh"
-                elif floor_value == "Blu-ray":
-                    floor_value = "videoi"
-                elif floor_value == "CD":
-                    floor_value = "videoj"
-                elif floor_value == "書籍":
-                    floor_value = "videok"
-                elif floor_value == "雑誌":
-                    floor_value = "videol"
-                elif floor_value == "その他":
-                    floor_value = "videom"  # その他の場合はvideomを使用
-                else:
-                    floor_value = "videoc"  # デフォルト値
-            
-            hits_value = self.hits_var.get()
-            if "1" in hits_value:
-                hits_value = "1"
-            elif "10" in hits_value:
-                hits_value = "10"
-            elif "20" in hits_value:
-                hits_value = "20"
-            elif "50" in hits_value:
-                hits_value = "50"
-            elif "100" in hits_value:
-                hits_value = "100"
-            
-            sort_value = self.sort_var.get()
-            if "date" in sort_value:
-                sort_value = "date"
-            elif "name" in sort_value:
-                sort_value = "name"
-            elif "price" in sort_value:
-                sort_value = "price"
-            elif "review" in sort_value:
-                sort_value = "review"
-            elif "rank" in sort_value:
-                sort_value = "rank"
+            # 基本設定の値を取得（日本語表示から実際の値に変換）
+            site_value = self._convert_site_display_to_value(self.site_var.get())
+            service_value = self._convert_service_display_to_value(self.service_var.get())
+            floor_value = self._convert_floor_display_to_value(self.floor_var.get())
+            hits_value = self.hits_var.get() or "10"
+            sort_value = self._convert_sort_display_to_value(self.sort_var.get())
+            limited_flag_value = self._convert_limited_flag_display_to_value(self.limited_flag_var.get())
+            article_type_value = self._convert_article_type_display_to_value(self.article_type_var.get())
+            page_wait = self.page_wait_sec_var.get() or "3"
             
             # スケジュール設定の値を取得
-            schedule_enabled = self.schedule_enabled_var.get()
-            schedule_interval = self.schedule_interval_var.get()
-            schedule_time = self.schedule_time_var.get()
-            schedule_day = self.schedule_day_var.get()
-            schedule_date = self.schedule_date_var.get()
-            custom_cron = self.custom_cron_var.get()
+            schedule_enabled = self.schedule_enabled_var.get() or False
+            schedule_interval = self._convert_schedule_interval_display_to_value(self.schedule_interval_var.get())
+            schedule_time = self.schedule_time_var.get() or "09:00"
+            schedule_day = self._convert_schedule_day_display_to_value(self.schedule_day_var.get())
+            schedule_date = self._convert_schedule_date_display_to_value(self.schedule_date_var.get())
+            custom_cron = self.custom_cron_var.get() or ""
             
-            # 投稿設定1から4の値を取得
+            # 投稿設定1から4の値を取得（詳細な検索設定も含む）
             post_settings_data = {}
             
-            # 投稿設定1
-            # アイキャッチ設定を実際の値に変換
-            eyecatch_1_value = self.post_eyecatch_1_var.get()
-            if eyecatch_1_value == "サンプル画像":
-                eyecatch_1_value = "sample"
-            elif eyecatch_1_value == "パッケージ画像":
-                eyecatch_1_value = "package"
-            elif eyecatch_1_value == "画像1":
-                eyecatch_1_value = "1"
-            elif eyecatch_1_value == "画像99":
-                eyecatch_1_value = "99"
-            
-            # 動画サイズ設定を実際の値に変換
-            movie_size_1_value = self.post_movie_size_1_var.get()
-            if movie_size_1_value == "自動":
-                movie_size_1_value = "auto"
-            elif movie_size_1_value == "720p":
-                movie_size_1_value = "720"
-            elif movie_size_1_value == "600p":
-                movie_size_1_value = "600"
-            elif movie_size_1_value == "560p":
-                movie_size_1_value = "560"
-            
-            # ポスター設定を実際の値に変換
-            poster_1_value = self.post_poster_1_var.get()
-            if poster_1_value == "パッケージ画像":
-                poster_1_value = "package"
-            elif poster_1_value == "サンプル画像":
-                poster_1_value = "sample"
-            elif poster_1_value == "なし":
-                poster_1_value = "none"
-            
-            # カテゴリ設定を実際の値に変換
-            category_1_value = self.post_category_1_var.get()
-            if category_1_value == "JAN":
-                category_1_value = "jan"
-            elif category_1_value == "女優":
-                category_1_value = "act"
-            elif category_1_value == "監督":
-                category_1_value = "director"
-            elif category_1_value == "シリーズ":
-                category_1_value = "seri"
-            
-            # ソート設定を実際の値に変換
-            sort_1_value = self.post_sort_1_var.get()
-            if sort_1_value == "人気順":
-                sort_1_value = "rank"
-            elif sort_1_value == "発売日順":
-                sort_1_value = "date"
-            elif sort_1_value == "レビュー順":
-                sort_1_value = "review"
-            elif sort_1_value == "価格順":
-                sort_1_value = "price"
-            
-            # 記事設定を実際の値に変換
-            article_1_value = self.post_article_1_var.get()
-            if article_1_value == "指定なし":
-                article_1_value = ""
-            elif article_1_value == "女優":
-                article_1_value = "actress"
-            elif article_1_value == "ジャンル":
-                article_1_value = "genre"
-            elif article_1_value == "シリーズ":
-                article_1_value = "series"
-            
-            # ステータス設定を実際の値に変換
-            status_1_value = self.post_status_1_var.get()
-            if status_1_value == "公開":
-                status_1_value = "publish"
-            elif status_1_value == "下書き":
-                status_1_value = "draft"
-            
-            # 時間設定を実際の値に変換
-            hour_1_value = self.post_hour_1_var.get()
-            if hour_1_value == "09:00":
-                hour_1_value = "h09"
-            elif hour_1_value == "12:00":
-                hour_1_value = "h12"
-            elif hour_1_value == "18:00":
-                hour_1_value = "h18"
-            elif hour_1_value == "21:00":
-                hour_1_value = "h21"
-            
-            post_settings_data["1"] = {
-                "title": self.post_title_1_var.get(),
-                "content": self.post_content_text1.get("1.0", tk.END).strip(),
-                "eyecatch": eyecatch_1_value,
-                "movie_size": movie_size_1_value,
-                "poster": poster_1_value,
-                "category": category_1_value,
-                "sort": sort_1_value,
-                "article": article_1_value,
-                "status": status_1_value,
-                "hour": hour_1_value,
-                "overwrite_existing": self.post_overwrite_existing_1_var.get(),
-                "target_new_posts": int(self.target_new_posts_1_var.get() or "10")
-            }
-            
-            # 投稿設定2
-            # アイキャッチ設定を実際の値に変換
-            eyecatch_2_value = self.post_eyecatch_2_var.get()
-            if eyecatch_2_value == "サンプル画像":
-                eyecatch_2_value = "sample"
-            elif eyecatch_2_value == "パッケージ画像":
-                eyecatch_2_value = "package"
-            elif eyecatch_2_value == "画像1":
-                eyecatch_2_value = "1"
-            elif eyecatch_2_value == "画像99":
-                eyecatch_2_value = "99"
-            
-            # 動画サイズ設定を実際の値に変換
-            movie_size_2_value = self.post_movie_size_2_var.get()
-            if movie_size_2_value == "自動":
-                movie_size_2_value = "auto"
-            elif movie_size_2_value == "720p":
-                movie_size_2_value = "720"
-            elif movie_size_2_value == "600p":
-                movie_size_2_value = "600"
-            elif movie_size_2_value == "560p":
-                movie_size_2_value = "560"
-            
-            # ポスター設定を実際の値に変換
-            poster_2_value = self.post_poster_2_var.get()
-            if poster_2_value == "パッケージ画像":
-                poster_2_value = "package"
-            elif poster_2_value == "サンプル画像":
-                poster_2_value = "sample"
-            elif poster_2_value == "なし":
-                poster_2_value = "none"
-            
-            # カテゴリ設定を実際の値に変換
-            category_2_value = self.post_category_2_var.get()
-            if category_2_value == "JAN":
-                category_2_value = "jan"
-            elif category_2_value == "女優":
-                category_2_value = "act"
-            elif category_2_value == "監督":
-                category_2_value = "director"
-            elif category_2_value == "シリーズ":
-                category_2_value = "seri"
-            
-            # ソート設定を実際の値に変換
-            sort_2_value = self.post_sort_2_var.get()
-            if sort_2_value == "人気順":
-                sort_2_value = "rank"
-            elif sort_2_value == "発売日順":
-                sort_2_value = "date"
-            elif sort_2_value == "レビュー順":
-                sort_2_value = "review"
-            elif sort_2_value == "価格順":
-                sort_2_value = "price"
-            
-            # 記事設定を実際の値に変換
-            article_2_value = self.post_article_2_var.get()
-            if article_2_value == "指定なし":
-                article_2_value = ""
-            elif article_2_value == "女優":
-                article_2_value = "actress"
-            elif article_2_value == "ジャンル":
-                article_2_value = "genre"
-            elif article_2_value == "シリーズ":
-                article_2_value = "series"
-            
-            # ステータス設定を実際の値に変換
-            status_2_value = self.post_status_2_var.get()
-            if status_2_value == "公開":
-                status_2_value = "publish"
-            elif status_2_value == "下書き":
-                status_2_value = "draft"
-            
-            # 時間設定を実際の値に変換
-            hour_2_value = self.post_hour_2_var.get()
-            if hour_2_value == "09:00":
-                hour_2_value = "h09"
-            elif hour_2_value == "12:00":
-                hour_2_value = "h12"
-            elif hour_2_value == "18:00":
-                hour_2_value = "h18"
-            elif hour_2_value == "21:00":
-                hour_2_value = "h21"
-            
-            post_settings_data["2"] = {
-                "title": self.post_title_2_var.get(),
-                "content": self.post_content_text2.get("1.0", tk.END).strip(),
-                "eyecatch": eyecatch_2_value,
-                "movie_size": movie_size_2_value,
-                "poster": poster_2_value,
-                "category": category_2_value,
-                "sort": sort_2_value,
-                "article": article_2_value,
-                "status": status_2_value,
-                "hour": hour_2_value,
-                "overwrite_existing": self.post_overwrite_existing_2_var.get(),
-                "target_new_posts": int(self.target_new_posts_2_var.get() or "10")
-            }
-            
-            # 投稿設定3
-            # アイキャッチ設定を実際の値に変換
-            eyecatch_3_value = self.post_eyecatch_3_var.get()
-            if eyecatch_3_value == "サンプル画像":
-                eyecatch_3_value = "sample"
-            elif eyecatch_3_value == "パッケージ画像":
-                eyecatch_3_value = "package"
-            elif eyecatch_3_value == "画像1":
-                eyecatch_3_value = "1"
-            elif eyecatch_3_value == "画像99":
-                eyecatch_3_value = "99"
-            
-            # 動画サイズ設定を実際の値に変換
-            movie_size_3_value = self.post_movie_size_3_var.get()
-            if movie_size_3_value == "自動":
-                movie_size_3_value = "auto"
-            elif movie_size_3_value == "720p":
-                movie_size_3_value = "720"
-            elif movie_size_3_value == "600p":
-                movie_size_3_value = "600"
-            elif movie_size_3_value == "560p":
-                movie_size_3_value = "560"
-            
-            # ポスター設定を実際の値に変換
-            poster_3_value = self.post_poster_3_var.get()
-            if poster_3_value == "パッケージ画像":
-                poster_3_value = "package"
-            elif poster_3_value == "サンプル画像":
-                poster_3_value = "sample"
-            elif poster_3_value == "なし":
-                poster_3_value = "none"
-            
-            # カテゴリ設定を実際の値に変換
-            category_3_value = self.post_category_3_var.get()
-            if category_3_value == "JAN":
-                category_3_value = "jan"
-            elif category_3_value == "女優":
-                category_3_value = "act"
-            elif category_3_value == "監督":
-                category_3_value = "director"
-            elif category_3_value == "シリーズ":
-                category_3_value = "seri"
-            
-            # ソート設定を実際の値に変換
-            sort_3_value = self.post_sort_3_var.get()
-            if sort_3_value == "人気順":
-                sort_3_value = "rank"
-            elif sort_3_value == "発売日順":
-                sort_3_value = "date"
-            elif sort_3_value == "レビュー順":
-                sort_3_value = "review"
-            elif sort_3_value == "価格順":
-                sort_3_value = "price"
-            
-            # 記事設定を実際の値に変換
-            article_3_value = self.post_article_3_var.get()
-            if article_3_value == "指定なし":
-                article_3_value = ""
-            elif article_3_value == "女優":
-                article_3_value = "actress"
-            elif article_3_value == "ジャンル":
-                article_3_value = "genre"
-            elif article_3_value == "シリーズ":
-                article_3_value = "series"
-            
-            # ステータス設定を実際の値に変換
-            status_3_value = self.post_status_3_var.get()
-            if status_3_value == "公開":
-                status_3_value = "publish"
-            elif status_3_value == "下書き":
-                status_3_value = "draft"
-            
-            # 時間設定を実際の値に変換
-            hour_3_value = self.post_hour_3_var.get()
-            if hour_3_value == "09:00":
-                hour_3_value = "h09"
-            elif hour_3_value == "12:00":
-                hour_3_value = "h12"
-            elif hour_3_value == "18:00":
-                hour_3_value = "h18"
-            elif hour_3_value == "21:00":
-                hour_3_value = "h21"
-            
-            post_settings_data["3"] = {
-                "title": self.post_title_3_var.get(),
-                "content": self.post_content_text3.get("1.0", tk.END).strip(),
-                "eyecatch": eyecatch_3_value,
-                "movie_size": movie_size_3_value,
-                "poster": poster_3_value,
-                "category": category_3_value,
-                "sort": sort_3_value,
-                "article": article_3_value,
-                "status": status_3_value,
-                "hour": hour_3_value,
-                "overwrite_existing": self.post_overwrite_existing_3_var.get(),
-                "target_new_posts": int(self.target_new_posts_3_var.get() or "10")
-            }
-            
-            # 投稿設定4
-            # アイキャッチ設定を実際の値に変換
-            eyecatch_4_value = self.post_eyecatch_4_var.get()
-            if eyecatch_4_value == "サンプル画像":
-                eyecatch_4_value = "sample"
-            elif eyecatch_4_value == "パッケージ画像":
-                eyecatch_4_value = "package"
-            elif eyecatch_4_value == "画像1":
-                eyecatch_4_value = "1"
-            elif eyecatch_4_value == "画像99":
-                eyecatch_4_value = "99"
-            
-            # 動画サイズ設定を実際の値に変換
-            movie_size_4_value = self.post_movie_size_4_var.get()
-            if movie_size_4_value == "自動":
-                movie_size_4_value = "auto"
-            elif movie_size_4_value == "720p":
-                movie_size_4_value = "720"
-            elif movie_size_4_value == "600p":
-                movie_size_4_value = "600"
-            elif movie_size_4_value == "560p":
-                movie_size_4_value = "560"
-            
-            # ポスター設定を実際の値に変換
-            poster_4_value = self.post_poster_4_var.get()
-            if poster_4_value == "パッケージ画像":
-                poster_4_value = "package"
-            elif poster_4_value == "サンプル画像":
-                poster_4_value = "sample"
-            elif poster_4_value == "なし":
-                poster_4_value = "none"
-            
-            # カテゴリ設定を実際の値に変換
-            category_4_value = self.post_category_4_var.get()
-            if category_4_value == "JAN":
-                category_4_value = "jan"
-            elif category_4_value == "女優":
-                category_4_value = "act"
-            elif category_4_value == "監督":
-                category_4_value = "director"
-            elif category_4_value == "シリーズ":
-                category_4_value = "seri"
-            
-            # ソート設定を実際の値に変換
-            sort_4_value = self.post_sort_4_var.get()
-            if sort_4_value == "人気順":
-                sort_4_value = "rank"
-            elif sort_4_value == "発売日順":
-                sort_4_value = "date"
-            elif sort_4_value == "レビュー順":
-                sort_4_value = "review"
-            elif sort_4_value == "価格順":
-                sort_4_value = "price"
-            
-            # 記事設定を実際の値に変換
-            article_4_value = self.post_article_4_var.get()
-            if article_4_value == "指定なし":
-                article_4_value = ""
-            elif article_4_value == "女優":
-                article_4_value = "actress"
-            elif article_4_value == "ジャンル":
-                article_4_value = "genre"
-            elif article_4_value == "シリーズ":
-                article_4_value = "series"
-            
-            # ステータス設定を実際の値に変換
-            status_4_value = self.post_status_4_var.get()
-            if status_4_value == "公開":
-                status_4_value = "publish"
-            elif status_4_value == "下書き":
-                status_4_value = "draft"
-            
-            # 時間設定を実際の値に変換
-            hour_4_value = self.post_hour_4_var.get()
-            if hour_4_value == "09:00":
-                hour_4_value = "h09"
-            elif hour_4_value == "12:00":
-                hour_4_value = "h12"
-            elif hour_4_value == "18:00":
-                hour_4_value = "h18"
-            elif hour_4_value == "21:00":
-                hour_4_value = "h21"
-            
-            post_settings_data["4"] = {
-                "title": self.post_title_4_var.get(),
-                "content": self.post_content_text4.get("1.0", tk.END).strip(),
-                "eyecatch": eyecatch_4_value,
-                "movie_size": movie_size_4_value,
-                "poster": poster_4_value,
-                "category": category_4_value,
-                "sort": sort_4_value,
-                "article": article_4_value,
-                "status": status_4_value,
-                "hour": hour_4_value,
-                "overwrite_existing": self.post_overwrite_existing_4_var.get(),
-                "target_new_posts": int(self.target_new_posts_4_var.get() or "10")
-            }
-            
-            # 投稿設定をSettingsManagerに保存
-            try:
-                self.settings_manager.save_post_settings({"post_settings": post_settings_data})
-                self.log_message("投稿設定を保存しました")
-            except Exception as e:
-                self.log_message(f"投稿設定保存エラー: {e}")
-            
-            # 数値フィールドのデフォルト値設定
-            page_wait = self.page_wait_sec_var.get()
-            if not page_wait or page_wait.strip() == "":
-                page_wait = "5"
+            for i in range(1, 5):
+                post_setting = {}
+                
+                # 基本設定
+                post_setting["title"] = getattr(self, f"post_title_{i}_var", tk.StringVar()).get() or f"[title] - 設定{i}"
+                post_setting["eyecatch"] = getattr(self, f"post_eyecatch_{i}_var", tk.StringVar()).get() or "sample"
+                post_setting["movie_size"] = getattr(self, f"post_movie_size_{i}_var", tk.StringVar()).get() or "auto"
+                post_setting["poster"] = getattr(self, f"post_poster_{i}_var", tk.StringVar()).get() or "package"
+                post_setting["category"] = getattr(self, f"post_category_{i}_var", tk.StringVar()).get() or "jan"
+                post_setting["sort"] = getattr(self, f"post_sort_{i}_var", tk.StringVar()).get() or "rank"
+                post_setting["article"] = getattr(self, f"post_article_{i}_var", tk.StringVar()).get() or ""
+                post_setting["status"] = getattr(self, f"post_status_{i}_var", tk.StringVar()).get() or "publish"
+                post_setting["hour"] = getattr(self, f"post_hour_{i}_var", tk.StringVar()).get() or f"h{9 + (i-1)*3:02d}"
+                post_setting["overwrite_existing"] = getattr(self, f"post_overwrite_existing_{i}_var", tk.BooleanVar()).get() or False
+                post_setting["target_new_posts"] = getattr(self, f"post_target_new_posts_{i}_var", tk.StringVar()).get() or str(10 + (i-1)*5)
+                
+                # 投稿内容テンプレート
+                content_text = getattr(self, f"post_content_{i}_text", None)
+                if content_text:
+                    post_setting["content"] = content_text.get("1.0", tk.END).strip()
+                else:
+                    post_setting["content"] = f"[title]の詳細情報です。設定{i}"
+                
+                post_settings_data[str(i)] = post_setting
             
             # 共通設定の値を取得
-            excerpt_template = self.excerpt_template_var.get() or "[title]の詳細情報です。"
-            max_sample_images = self.max_sample_images_var.get() or "1"
-            categories = self.categories_var.get() or ""
-            tags = self.tags_var.get() or ""
-            affiliate1_text = self.affiliate1_text_var.get() or "詳細を見る"
-            affiliate1_color = self.affiliate1_color_var.get() or "#FFFFFF"
-            affiliate1_bg = self.affiliate1_bg_var.get() or "#FF6B6B"
-            affiliate2_text = self.affiliate2_text_var.get() or "購入する"
-            affiliate2_color = self.affiliate2_color_var.get() or "#FFFFFF"
-            affiliate2_bg = self.affiliate2_bg_var.get() or "#4ECDC4"
-            post_date_setting = self.post_date_setting_var.get() or "本日"
-            random_text1 = self.random_text1_var.get() or ""
-            random_text2 = self.random_text2_var.get() or ""
-            random_text3 = self.random_text3_var.get() or ""
+            excerpt_template = getattr(self, "excerpt_template_var", tk.StringVar()).get() or "[title]の詳細情報です。"
+            max_sample_images = getattr(self, "max_sample_images_var", tk.StringVar()).get() or "5"
+            categories = getattr(self, "categories_var", tk.StringVar()).get() or ""
+            tags = getattr(self, "tags_var", tk.StringVar()).get() or ""
+            affiliate1_text = getattr(self, "affiliate1_text_var", tk.StringVar()).get() or "詳細を見る"
+            affiliate1_color = getattr(self, "affiliate1_color_var", tk.StringVar()).get() or "#ffffff"
+            affiliate1_bg = getattr(self, "affiliate1_bg_var", tk.StringVar()).get() or "#007cba"
+            affiliate2_text = getattr(self, "affiliate2_text_var", tk.StringVar()).get() or "購入する"
+            affiliate2_color = getattr(self, "affiliate2_color_var", tk.StringVar()).get() or "#ffffff"
+            affiliate2_bg = getattr(self, "affiliate2_bg_var", tk.StringVar()).get() or "#d63638"
+            post_date_setting = getattr(self, "post_date_setting_var", tk.StringVar()).get() or "now"
+            random_text1 = getattr(self, "random_text1_var", tk.StringVar()).get() or ""
+            random_text2 = getattr(self, "random_text2_var", tk.StringVar()).get() or ""
+            random_text3 = getattr(self, "random_text3_var", tk.StringVar()).get() or ""
             
             # 自動実行設定の値を取得
-            auto_on = self.auto_on_var.get() or "off"
-            today = str(self.today_var.get()).lower()
-            threeday = str(self.threeday_var.get()).lower()
-            range_enabled = str(self.range_var.get()).lower()
-            s_date = self.s_date_var.get() or ""
-            e_date = self.e_date_var.get() or ""
-            exe_min = self.exe_min_var.get() or "0"
+            auto_on = getattr(self, "auto_on_var", tk.BooleanVar()).get() or False
+            today = getattr(self, "today_var", tk.BooleanVar()).get() or False
+            threeday = getattr(self, "threeday_var", tk.BooleanVar()).get() or False
+            range_enabled = getattr(self, "range_var", tk.BooleanVar()).get() or False
+            s_date = getattr(self, "s_date_var", tk.StringVar()).get() or ""
+            e_date = getattr(self, "e_date_var", tk.StringVar()).get() or ""
+            exe_min = getattr(self, "exe_min_var", tk.StringVar()).get() or "0"
             
             # 絞り込み設定の値を取得
-            article_type = self.article_type_var.get() or ""
-            id_filter = self.id_filter_var.get() or ""
-            date_filter_enabled = str(self.date_filter_enabled_var.get()).lower()
-            date_filter_start = self.date_filter_start_var.get() or ""
-            date_filter_end = self.date_filter_end_var.get() or ""
+            id_filter = getattr(self, "id_filter_var", tk.StringVar()).get() or ""
+            date_filter_enabled = getattr(self, "date_filter_enabled_var", tk.BooleanVar()).get() or False
+            date_filter_start = getattr(self, "date_filter_start_var", tk.StringVar()).get() or ""
+            date_filter_end = getattr(self, "date_filter_end_var", tk.StringVar()).get() or ""
             
+            # 統合された設定データを作成
             settings_data = {
                 "DMM_API_ID": self.dmm_api_id_var.get() or "",
                 "DMM_AFFILIATE_ID": self.dmm_affiliate_id_var.get() or "",
                 "WORDPRESS_BASE_URL": self.wp_url_var.get() or "",
                 "WORDPRESS_USERNAME": self.wp_username_var.get() or "",
                 "WORDPRESS_APPLICATION_PASSWORD": self.wp_app_password_var.get() or "",
-                "SITE": site_value or "FANZA",
-                "SERVICE": service_value or "digital",
-                "FLOOR": floor_value or "videoc",
-                "HITS": hits_value or "10",
-                "SORT": sort_value or "date",
+                "SITE": site_value,
+                "SERVICE": service_value,
+                "FLOOR": floor_value,
+                "HITS": hits_value,
+                "SORT": sort_value,
                 "KEYWORD": self.keyword_var.get() or "",
                 "MAXIMAGE": self.maximage_var.get() or "1",
-                "LIMITED_FLAG": self.limited_flag_var.get() or "0",
+                "LIMITED_FLAG": limited_flag_value,
+                "ARTICLE_TYPE": article_type_value,
                 "PAGE_WAIT_SEC": page_wait,
-                "SCHEDULE_ENABLED": str(schedule_enabled).lower(),
+                "SCHEDULE_ENABLED": schedule_enabled,
                 "SCHEDULE_INTERVAL": schedule_interval,
                 "SCHEDULE_TIME": schedule_time,
                 "SCHEDULE_DAY": schedule_day,
@@ -2464,7 +1758,6 @@ class FanzaAutoGUI:
                 "E_DATE": e_date,
                 "EXE_MIN": exe_min,
                 # 絞り込み設定
-                "ARTICLE_TYPE": article_type,
                 "ID_FILTER": id_filter,
                 "DATE_FILTER_ENABLED": date_filter_enabled,
                 "DATE_FILTER_START": date_filter_start,
@@ -2483,66 +1776,320 @@ class FanzaAutoGUI:
                 settings_data[f"POST_ARTICLE_{i}"] = post_setting["article"]
                 settings_data[f"POST_STATUS_{i}"] = post_setting["status"]
                 settings_data[f"POST_HOUR_{i}"] = post_setting["hour"]
-                settings_data[f"POST_OVERWRITE_EXISTING_{i}"] = str(post_setting["overwrite_existing"]).lower()
-                settings_data[f"POST_TARGET_NEW_POSTS_{i}"] = str(post_setting["target_new_posts"])
+                settings_data[f"POST_OVERWRITE_EXISTING_{i}"] = post_setting["overwrite_existing"]
+                settings_data[f"POST_TARGET_NEW_POSTS_{i}"] = post_setting["target_new_posts"]
+                settings_data[f"POST_CONTENT_{i}"] = post_setting["content"]
             
             # 24時間分のチェックボックスと投稿設定選択の値を追加
             for i in range(24):
                 hour_key = f"h{i:02d}"
-                hour_enabled = str(self.hour_vars[hour_key].get()).lower()
+                hour_enabled = self.hour_vars[hour_key].get()
                 hour_select = self.hour_select_vars[hour_key].get() or "1"
                 settings_data[f"HOUR_{hour_key}"] = hour_enabled
                 settings_data[f"HOUR_{hour_key}_SELECT"] = hour_select
             
-            # .envファイルに保存（プロジェクトルートディレクトリに作成）
-            env_file_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
-            print(f"保存先パス: {env_file_path}")
-            print(f"保存する設定数: {len(settings_data)}")
-            with open(env_file_path, "w", encoding="utf-8") as f:
-                for key, value in settings_data.items():
-                    f.write(f"{key}={value}\n")
-            print(f".envファイル保存完了: {env_file_path}")
-            print(f"ファイルサイズ: {os.path.getsize(env_file_path)} bytes")
-            
-            # 環境変数として設定
-            for key, value in settings_data.items():
-                os.environ[key] = value
-            
-            # 投稿設定1から4をSettingsManagerを使って保存
+            # 新しい設定管理システムを使用して設定を保存
             try:
-                self.settings_manager.save_post_settings(post_settings_data)
-                self.log_message("投稿設定1から4を保存しました")
+                if self.settings and hasattr(self.settings, 'save'):
+                    # Settingsクラスのsaveメソッドを使用
+                    if self.settings.save(settings_data):
+                        self.log_message("設定を正常に保存しました")
+                    else:
+                        self.log_message("設定の保存に失敗しました")
+                        messagebox.showerror("エラー", "設定の保存に失敗しました")
+                        return
+                else:
+                    # 直接SettingsManagerを使用
+                    base_dir = os.path.dirname(os.path.abspath(__file__))
+                    settings_manager = SettingsManager(base_dir)
+                    if settings_manager.save_settings(settings_data):
+                        self.log_message("設定を正常に保存しました")
+                    else:
+                        self.log_message("設定の保存に失敗しました")
+                        messagebox.showerror("エラー", "設定の保存に失敗しました")
+                        return
+                        
             except Exception as e:
                 self.log_message(f"投稿設定保存エラー: {e}")
+                # エラーの詳細をログに記録
+                import traceback
+                self.log_message(f"エラー詳細: {traceback.format_exc()}")
                 messagebox.showerror("エラー", f"投稿設定の保存に失敗しました: {e}")
+                return
             
-            # 設定を再読み込み
+            # 設定を再読み込み（エラーが発生した場合は処理を停止）
             try:
                 self.settings = Settings.load()
                 self.engine = Engine.from_settings(self.settings)
                 self.log_message("設定を正常に再読み込みしました")
             except Exception as e:
                 self.log_message(f"設定再読み込みエラー: {e}")
-                # エラーが発生しても設定は保存されているので続行
+                messagebox.showerror("エラー", f"設定の再読み込みに失敗しました: {e}")
+                return
             
-            self.log_message(f"設定を保存しました: {env_file_path}")
+            self.log_message("設定を保存しました")
             self.status_var.set("設定保存完了")
-            
-            # 保存成功のメッセージ
-            messagebox.showinfo("成功", "設定が正常に保存されました。")
+            messagebox.showinfo("完了", "設定を保存しました")
             
         except Exception as e:
             self.log_message(f"設定保存エラー: {e}")
-            messagebox.showerror("エラー", f"設定保存に失敗しました: {e}")
+            import traceback
+            self.log_message(f"エラー詳細: {traceback.format_exc()}")
+            messagebox.showerror("エラー", f"設定の保存に失敗しました: {e}")
+    
+    def _convert_site_display_to_value(self, display_value: str) -> str:
+        """サイト表示値を実際の値に変換"""
+        if display_value == "FANZA":
+            return "FANZA"
+        elif display_value == "FANZA通販":
+            return "DMM"
+        else:
+            return display_value or "FANZA"
+    
+    def _convert_service_display_to_value(self, display_value: str) -> str:
+        """サービス表示値を実際の値に変換"""
+        if display_value == "デジタル":
+            return "digital"
+        elif display_value == "パッケージ":
+            return "package"
+        elif display_value == "両方":
+            return "both"
+        else:
+            return display_value or "digital"
+    
+    def _convert_floor_display_to_value(self, display_value: str) -> str:
+        """フロア表示値を実際の値に変換"""
+        floor_mapping = {
+            "動画": "videoc",
+            "通販": "videoa", 
+            "レンタル": "videob",
+            "動画通販": "videod"
+        }
+        return floor_mapping.get(display_value, "videoc")
+    
+    def _convert_sort_display_to_value(self, display_value: str) -> str:
+        """ソート表示値を実際の値に変換"""
+        sort_mapping = {
+            "発売日順": "date",
+            "名前順": "name",
+            "価格順": "price",
+            "レビュー順": "review",
+            "人気順": "rank"
+        }
+        return sort_mapping.get(display_value, "date")
+    
+    def _convert_limited_flag_display_to_value(self, display_value: str) -> str:
+        """制限フラグ表示値を実際の値に変換"""
+        if display_value == "制限なし":
+            return "0"
+        elif display_value == "制限あり":
+            return "1"
+        else:
+            return display_value or "0"
+    
+    def _convert_article_type_display_to_value(self, display_value: str) -> str:
+        """記事タイプ表示値を実際の値に変換"""
+        if display_value == "指定なし":
+            return ""
+        elif display_value == "女優":
+            return "actress"
+        elif display_value == "ジャンル":
+            return "genre"
+        elif display_value == "シリーズ":
+            return "series"
+        else:
+            return display_value or ""
+    
+    def _convert_schedule_interval_display_to_value(self, display_value: str) -> str:
+        """スケジュール間隔表示値を実際の値に変換"""
+        interval_mapping = {
+            "毎分": "every_minute",
+            "毎時": "hourly",
+            "毎日": "daily",
+            "毎週": "weekly",
+            "毎月": "monthly",
+            "カスタム": "custom"
+        }
+        return interval_mapping.get(display_value, "daily")
+    
+    def _convert_schedule_day_display_to_value(self, display_value: str) -> str:
+        """スケジュール曜日表示値を実際の値に変換"""
+        day_mapping = {
+            "月曜日": "monday",
+            "火曜日": "tuesday",
+            "水曜日": "wednesday",
+            "木曜日": "thursday",
+            "金曜日": "friday",
+            "土曜日": "saturday",
+            "日曜日": "sunday"
+        }
+        return day_mapping.get(display_value, "monday")
+    
+    def _convert_schedule_date_display_to_value(self, display_value: str) -> str:
+        """スケジュール日表示値を実際の値に変換"""
+        if display_value and "日" in display_value:
+            return display_value.replace("日", "")
+        return display_value or "1"
+    
+    def _convert_eyecatch_display_to_value(self, display_value: str) -> str:
+        """アイキャッチ表示値を実際の値に変換"""
+        if display_value == "サンプル画像":
+            return "sample"
+        elif display_value == "パッケージ画像":
+            return "package"
+        elif display_value == "画像1":
+            return "1"
+        elif display_value == "画像99":
+            return "99"
+        else:
+            return display_value or "sample"
+    
+    def _convert_movie_size_display_to_value(self, display_value: str) -> str:
+        """動画サイズ表示値を実際の値に変換"""
+        if display_value == "自動":
+            return "auto"
+        elif display_value == "720p":
+            return "720"
+        elif display_value == "600p":
+            return "600"
+        elif display_value == "560p":
+            return "560"
+        else:
+            return display_value or "auto"
+    
+    def _convert_poster_display_to_value(self, display_value: str) -> str:
+        """ポスター表示値を実際の値に変換"""
+        if display_value == "パッケージ画像":
+            return "package"
+        elif display_value == "サンプル画像":
+            return "sample"
+        elif display_value == "なし":
+            return "none"
+        else:
+            return display_value or "package"
+    
+    def _convert_category_display_to_value(self, display_value: str) -> str:
+        """カテゴリ表示値を実際の値に変換"""
+        if display_value == "JAN":
+            return "jan"
+        elif display_value == "女優":
+            return "act"
+        elif display_value == "監督":
+            return "director"
+        elif display_value == "シリーズ":
+            return "seri"
+        else:
+            return display_value or "jan"
+    
+    def _convert_post_sort_display_to_value(self, display_value: str) -> str:
+        """投稿ソート表示値を実際の値に変換"""
+        if display_value == "人気順":
+            return "rank"
+        elif display_value == "発売日順":
+            return "date"
+        elif display_value == "レビュー順":
+            return "review"
+        elif display_value == "価格順":
+            return "price"
+        else:
+            return display_value or "rank"
+    
+    def _convert_post_article_display_to_value(self, display_value: str) -> str:
+        """投稿記事表示値を実際の値に変換"""
+        if display_value == "指定なし":
+            return ""
+        elif display_value == "女優":
+            return "actress"
+        elif display_value == "ジャンル":
+            return "genre"
+        elif display_value == "シリーズ":
+            return "series"
+        else:
+            return display_value or ""
+    
+    def _convert_status_display_to_value(self, display_value: str) -> str:
+        """ステータス表示値を実際の値に変換"""
+        if display_value == "公開":
+            return "publish"
+        elif display_value == "下書き":
+            return "draft"
+        else:
+            return display_value or "publish"
+    
+    def _convert_hour_display_to_value(self, display_value: str) -> str:
+        """時間表示値を実際の値に変換"""
+        if display_value == "09:00":
+            return "h09"
+        elif display_value == "12:00":
+            return "h12"
+        elif display_value == "18:00":
+            return "h18"
+        elif display_value == "21:00":
+            return "h21"
+        else:
+            return display_value or "h09"
+    
+    def _convert_post_date_display_to_value(self, display_value: str) -> str:
+        """投稿日設定表示値を実際の値に変換"""
+        if display_value == "本日":
+            return "today"
+        elif display_value == "指定日":
+            return "specified"
+        elif display_value == "ランダムな過去日":
+            return "random_past"
+        else:
+            return display_value or "today"
     
     def load_settings_from_gui(self):
         """GUIから設定を読み込む"""
         self.load_settings_to_gui()
         self.log_message("設定を再読み込みしました")
     
+    def _convert_floor_value_fallback(self, floor_value: str) -> str:
+        """フロアマッピングが利用できない場合のフォールバック処理"""
+        floor_mapping = {
+            "動画": "videoc",
+            "アニメ": "videoa",
+            "ゲーム": "videob",
+            "電子書籍": "videod",
+            "音楽": "videoe",
+            "ライブチャット": "videof",
+            "写真集": "videog",
+            "DVD": "videoh",
+            "Blu-ray": "videoi",
+            "CD": "videoj",
+            "書籍": "videok",
+            "雑誌": "videol",
+            "その他": "videom"
+        }
+        return floor_mapping.get(floor_value, "videoc")  # デフォルト値
+    
+    def _convert_floor_code_to_name(self, floor_code: str) -> str:
+        """フロアコードからフロア名に変換する（従来の変換処理）"""
+        floor_mapping = {
+            "videoc": "動画",
+            "videoa": "アニメ",
+            "videob": "ゲーム",
+            "videod": "電子書籍",
+            "videoe": "音楽",
+            "videof": "ライブチャット",
+            "videog": "写真集",
+            "videoh": "DVD",
+            "videoi": "Blu-ray",
+            "videoj": "CD",
+            "videok": "書籍",
+            "videol": "雑誌",
+            "videom": "その他"
+        }
+        return floor_mapping.get(floor_code, "動画")  # デフォルト値
+    
     def run_once(self):
         """1回実行"""
         if self.is_running:
+            return
+        
+        # 実行前のフロア設定検証
+        if not self.validate_floor_settings():
             return
         
         self.is_running = True
@@ -2555,6 +2102,12 @@ class FanzaAutoGUI:
                 # 選択された投稿設定を取得
                 selected_setting = self.selected_post_setting_var.get()
                 self.log_message(f"投稿設定{selected_setting}を使用して実行します")
+                
+                # 現在のフロア情報をログに表示
+                floor_info = self.get_current_floor_info()
+                if floor_info:
+                    self.log_message(f"対象フロア: {floor_info.get('name', 'N/A')} (コード: {floor_info.get('code', 'N/A')})")
+                    self.log_message(f"サイト: {floor_info.get('site', 'N/A')}, サービス: {floor_info.get('service', 'N/A')}")
                 
                 # 実行前の情報をログに表示
                 items, total = self.engine.search_items()
@@ -2592,6 +2145,10 @@ class FanzaAutoGUI:
             messagebox.showwarning("警告", "既に実行中です")
             return
         
+        # 実行前のフロア設定検証
+        if not self.validate_floor_settings():
+            return
+        
         self.is_running = True
         self.status_var.set("テスト実行中...")
         
@@ -2602,6 +2159,12 @@ class FanzaAutoGUI:
                 # 選択された投稿設定を取得
                 selected_setting = self.selected_post_setting_var.get()
                 self.log_message(f"投稿設定{selected_setting}を使用してテスト実行します")
+                
+                # 現在のフロア情報をログに表示
+                floor_info = self.get_current_floor_info()
+                if floor_info:
+                    self.log_message(f"対象フロア: {floor_info.get('name', 'N/A')} (コード: {floor_info.get('code', 'N/A')})")
+                    self.log_message(f"サイト: {floor_info.get('site', 'N/A')}, サービス: {floor_info.get('service', 'N/A')}")
                 
                 result = self.engine.run_test(selected_setting)
                 
@@ -2855,6 +2418,18 @@ class FanzaAutoGUI:
                 self.settings_status_var.set("設定状態: 通常 (変更可能)")
         except Exception as e:
             self.settings_status_var.set(f"設定状態: エラー ({str(e)})")
+    
+    def repair_settings(self):
+        """設定を修復"""
+        try:
+            if messagebox.askyesno("確認", "破損した設定ファイルを修復しますか？\n修復前に現在の設定がバックアップされます。"):
+                if self.settings_manager.repair_settings():
+                    messagebox.showinfo("完了", "設定を修復しました")
+                    self.load_settings_to_gui()
+                else:
+                    messagebox.showerror("エラー", "設定の修復に失敗しました")
+        except Exception as e:
+            messagebox.showerror("エラー", f"設定修復エラー: {e}")
 
     def preview_post_content(self):
         """投稿内容をプレビューする（投稿設定1から4）"""
@@ -2989,6 +2564,26 @@ class FanzaAutoGUI:
             self.log_message(f"プレビュー表示エラー: {e}")
             messagebox.showerror("エラー", f"プレビューの表示に失敗しました: {e}")
     
+    def update_floor_info_display(self):
+        """フロア情報表示ラベルを更新"""
+        try:
+            current_floor = self.floor_var.get()
+            if not current_floor:
+                self.floor_info_label.config(text="フロア情報: 未選択", foreground="red")
+                return
+            
+            floor_info = self.get_current_floor_info()
+            if floor_info and 'code' in floor_info:
+                info_text = f"フロア情報: {current_floor} (コード: {floor_info['code']})"
+                if 'site' in floor_info and 'service' in floor_info:
+                    info_text += f" | サイト: {floor_info['site']}, サービス: {floor_info['service']}"
+                self.floor_info_label.config(text=info_text, foreground="green")
+            else:
+                self.floor_info_label.config(text=f"フロア情報: {current_floor} (コード未取得)", foreground="orange")
+                
+        except Exception as e:
+            self.floor_info_label.config(text=f"フロア情報取得エラー: {e}", foreground="red")
+
     def update_floor_list(self):
         """フロア一覧をAPIから取得して更新する"""
         try:
@@ -3007,21 +2602,37 @@ class FanzaAutoGUI:
                 messagebox.showwarning("警告", "API IDまたはアフィリエイトIDが入力されていません。")
                 return
             
+            # 設定ファイルからも確認
+            if hasattr(self, 'settings') and self.settings:
+                if not api_id_value and hasattr(self.settings, 'api_id'):
+                    api_id_value = self.settings.api_id
+                if not affiliate_id_value and hasattr(self.settings, 'affiliate_id'):
+                    affiliate_id_value = self.settings.affiliate_id
+            
+            if not api_id_value or not affiliate_id_value:
+                messagebox.showwarning("警告", "API IDまたはアフィリエイトIDが設定されていません。\n基本設定でAPI情報を設定してください。")
+                return
+            
             # DMMクライアントを作成してフロア一覧を取得
             from .dmm_client import DMMClient
             client = DMMClient(api_id=api_id_value, affiliate_id=affiliate_id_value)
             
             self.log_message("フロア一覧を取得中...")
-            floor_data = client.floor_list()
+            
+            # キャッシュを使用してフロア一覧を取得
+            floor_data = client.floor_list(use_cache=True, cache_file="floor_cache.json")
             
             if 'result' in floor_data and 'site' in floor_data['result']:
                 sites = floor_data['result']['site']
                 floor_options = []
                 floor_mapping = {}  # 日本語名とコードのマッピング
+                floor_details = {}  # フロアの詳細情報
                 
                 for site in sites:
+                    site_name = site.get('name', 'Unknown')
                     if 'service' in site:
                         for service in site['service']:
+                            service_name = service.get('name', 'Unknown')
                             if 'floor' in service:
                                 for floor in service['floor']:
                                     floor_name = floor.get('name', '')
@@ -3029,6 +2640,11 @@ class FanzaAutoGUI:
                                     if floor_name and floor_code:
                                         floor_options.append(floor_name)
                                         floor_mapping[floor_name] = floor_code
+                                        floor_details[floor_name] = {
+                                            'code': floor_code,
+                                            'site': site_name,
+                                            'service': service_name
+                                        }
                 
                 if floor_options:
                     # フロア一覧を更新
@@ -3045,6 +2661,22 @@ class FanzaAutoGUI:
                     
                     # フロアマッピングを保存（後で保存時に使用）
                     self.floor_mapping = floor_mapping
+                    self.floor_details = floor_details
+                    
+                    # フロア情報表示を更新
+                    self.update_floor_info_display()
+                    
+                    # フロアサマリー情報を取得して表示
+                    try:
+                        summary = client.get_floor_summary()
+                        if summary:
+                            summary_text = f"総フロア数: {summary.get('total_floors', 0)}"
+                            if summary.get('floors_by_site'):
+                                site_info = ", ".join([f"{site}: {count}" for site, count in summary['floors_by_site'].items()])
+                                summary_text += f" | サイト別: {site_info}"
+                            self.log_message(summary_text)
+                    except Exception as e:
+                        self.log_message(f"フロアサマリー取得エラー: {e}")
                     
                     self.log_message(f"フロア一覧を更新しました（{len(floor_options)}件）")
                     messagebox.showinfo("完了", f"フロア一覧を更新しました（{len(floor_options)}件）")
@@ -3060,6 +2692,54 @@ class FanzaAutoGUI:
         except Exception as e:
             self.log_message(f"フロア一覧更新エラー: {e}")
             messagebox.showerror("エラー", f"フロア一覧の更新に失敗しました: {e}")
+            
+            # エラーの詳細をログに記録
+            import traceback
+            error_details = traceback.format_exc()
+            self.log_message(f"エラー詳細: {error_details}")
+
+    def get_current_floor_info(self) -> Dict[str, Any]:
+        """現在選択されているフロアの詳細情報を取得"""
+        try:
+            current_floor = self.floor_var.get()
+            if hasattr(self, 'floor_details') and current_floor in self.floor_details:
+                return self.floor_details[current_floor]
+            elif hasattr(self, 'floor_mapping') and current_floor in self.floor_mapping:
+                # 基本的な情報のみ
+                return {
+                    'code': self.floor_mapping[current_floor],
+                    'name': current_floor
+                }
+            else:
+                return {}
+        except Exception as e:
+            self.log_message(f"フロア情報取得エラー: {e}")
+            return {}
+
+    def validate_floor_settings(self) -> bool:
+        """フロア設定の妥当性をチェック"""
+        try:
+            current_floor = self.floor_var.get()
+            if not current_floor:
+                messagebox.showwarning("警告", "フロアが選択されていません")
+                return False
+            
+            floor_info = self.get_current_floor_info()
+            if not floor_info:
+                messagebox.showwarning("警告", "フロア情報が取得できません")
+                return False
+            
+            # フロアコードの存在確認
+            if 'code' not in floor_info:
+                messagebox.showwarning("警告", "フロアコードが取得できません")
+                return False
+            
+            self.log_message(f"フロア設定検証完了: {current_floor} ({floor_info.get('code', 'N/A')})")
+            return True
+            
+        except Exception as e:
+            self.log_message(f"フロア設定検証エラー: {e}")
+            return False
 
     def start_monitoring(self):
         """監視を開始する"""
@@ -3212,6 +2892,23 @@ class FanzaAutoGUI:
                 self.root.destroy()
             except:
                 pass
+
+    def on_floor_selected(self, event=None):
+        """フロア選択時のイベントハンドラー"""
+        try:
+            # フロア情報表示を更新
+            self.update_floor_info_display()
+            
+            # ログにフロア選択を記録
+            current_floor = self.floor_var.get()
+            floor_info = self.get_current_floor_info()
+            if floor_info and 'code' in floor_info:
+                self.log_message(f"フロアを選択しました: {current_floor} (コード: {floor_info['code']})")
+            else:
+                self.log_message(f"フロアを選択しました: {current_floor}")
+                
+        except Exception as e:
+            self.log_message(f"フロア選択処理エラー: {e}")
 
 def main():
     print("main関数開始")

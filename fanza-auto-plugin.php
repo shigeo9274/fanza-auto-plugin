@@ -246,6 +246,139 @@ class ContentGenerator {
         
         return $this->template_engine->render('default', $variables);
     }
+
+    /**
+     * 統一された変数置換システム
+     * タイトルと投稿内容の両方で使用
+     */
+    public function replaceVariables($template_content, $item, $affiliate_url = '', $additional_data = []) {
+        if (empty($template_content)) {
+            return '';
+        }
+
+        // デバッグログ
+        error_log('replaceVariables called with:');
+        error_log('template_content: ' . $template_content);
+        error_log('item title: ' . ($item->title ?? 'NULL'));
+        error_log('item content_id: ' . ($item->content_id ?? 'NULL'));
+        error_log('affiliate_url: ' . $affiliate_url);
+        error_log('additional_data: ' . print_r($additional_data, true));
+
+        $content = $template_content;
+        
+        // 基本的な変数置き換え
+        $variables = [
+            '[title]' => $item->title ?? '',
+            '[cid]' => $item->content_id ?? '',
+            '[content_id]' => $item->content_id ?? '',
+            '[content-id]' => $item->content_id ?? '',
+            '[url]' => $item->URL ?? '',
+            '[aff-link]' => $item->affiliateURL ?? '',
+            '[affiliate_url]' => $affiliate_url ?: ($item->affiliateURL ?? ''),
+            '[comment]' => $additional_data['comment_content'] ?? '',
+            '[description]' => $additional_data['comment_content'] ?? '',
+            '[date]' => $additional_data['onDate'] ?? '',
+            '[jancode]' => $item->jancode ?? '',
+            '[volume]' => $item->volume ?? '',
+            '[price]' => $additional_data['price'] ?? '',
+            '[review-count]' => $additional_data['review_count'] ?? '',
+            '[review-average]' => $additional_data['review_average'] ?? '',
+            '[random1]' => $additional_data['random1'] ?? '',
+            '[random2]' => $additional_data['random2'] ?? '',
+            '[random3]' => $additional_data['random3'] ?? '',
+        ];
+
+        // リスト形式のデータを文字列に変換（iteminfoプロパティが存在する場合のみ）
+        if (isset($item->iteminfo)) {
+            $variables['[actress]'] = $this->getListAsString($item->iteminfo->actress ?? []);
+            $variables['[performer]'] = $this->getListAsString($item->iteminfo->actor ?? []);
+            $variables['[maker]'] = $this->getListAsString($item->iteminfo->maker ?? []);
+            $variables['[label]'] = $this->getListAsString($item->iteminfo->label ?? []);
+            $variables['[publisher]'] = $this->getListAsString($item->iteminfo->manufacture ?? []);
+            $variables['[director]'] = $this->getListAsString($item->iteminfo->director ?? []);
+            $variables['[series]'] = $this->getListAsString($item->iteminfo->series ?? []);
+            $variables['[author]'] = $this->getListAsString($item->iteminfo->author ?? []);
+            $variables['[genre]'] = $this->getListAsString($item->iteminfo->genre ?? []);
+        } else {
+            // iteminfoプロパティが存在しない場合は空文字を設定
+            $variables['[actress]'] = '';
+            $variables['[performer]'] = '';
+            $variables['[maker]'] = '';
+            $variables['[label]'] = '';
+            $variables['[publisher]'] = '';
+            $variables['[director]'] = '';
+            $variables['[series]'] = '';
+            $variables['[author]'] = '';
+            $variables['[genre]'] = '';
+        }
+
+        // HTMLパーツの生成
+        $variables['[detail-list]'] = $additional_data['detail_content_ul'] ?? '';
+        $variables['[detail-table]'] = $additional_data['detail_content_table'] ?? '';
+        $variables['[package]'] = $additional_data['package_img'] ?? '';
+        $variables['[sample-movie]'] = $additional_data['smovie_content'] ?? '';
+        $variables['[sample-movie2]'] = $additional_data['sample_movie2'] ?? '';
+        $variables['[tachiyomi]'] = $additional_data['tachiyomi_content'] ?? '';
+        $variables['[tachiyomi-link]'] = $additional_data['tachiyomi_link'] ?? '';
+        $variables['[sample-cap]'] = $additional_data['sample_img_non'] ?? '';
+        $variables['[sample-photo]'] = $additional_data['sample_no_cap_link'] ?? '';
+        $variables['[sample-flex]'] = $additional_data['sample_img_content_small'] ?? '';
+        $variables['[sample-nolink]'] = $additional_data['sample_img_non'] ?? '';
+        $variables['[sample-no-cap-link]'] = $additional_data['sample_no_cap_link'] ?? '';
+        $variables['[act-info]'] = $additional_data['act_page'] ?? '';
+        $variables['[act-table]'] = $additional_data['act_table'] ?? '';
+        $variables['[comment-short]'] = $additional_data['comment_short'] ?? '';
+        $variables['[user-comment]'] = $additional_data['post_comment'] ?? '';
+        $variables['[aff-button]'] = $additional_data['button_content'] ?? '';
+        $variables['[aff-button2]'] = $additional_data['button_content2'] ?? '';
+        $variables['[review]'] = $additional_data['review_html'] ?? '';
+        $variables['[review2]'] = $additional_data['review_html2'] ?? '';
+
+        // デバッグログ
+        error_log('Variables array: ' . print_r($variables, true));
+
+        // 変数を置き換え
+        foreach ($variables as $key => $value) {
+            $content = str_replace($key, $value, $content);
+        }
+
+        // デバッグログ
+        error_log('Final content: ' . $content);
+
+        return $content;
+    }
+
+    /**
+     * リスト形式のデータを文字列に変換
+     */
+    private function getListAsString($list) {
+        if (empty($list)) {
+            return '';
+        }
+        
+        if (is_array($list)) {
+            $names = [];
+            foreach ($list as $item) {
+                if (is_object($item) && isset($item->name)) {
+                    $names[] = $item->name;
+                } elseif (is_string($item)) {
+                    $names[] = $item;
+                } elseif (is_object($item) && isset($item->value)) {
+                    $names[] = $item->value;
+                }
+            }
+            return implode(' ', $names);
+        } elseif (is_object($list)) {
+            // オブジェクトの場合、直接nameプロパティを確認
+            if (isset($list->name)) {
+                return $list->name;
+            } elseif (isset($list->value)) {
+                return $list->value;
+            }
+        }
+        
+        return '';
+    }
 }
 
 class FANZAAutoPlugin {
@@ -2701,24 +2834,25 @@ class FANZAAutoPlugin {
         if($cont_title == ''){
             $t_title    = get_option(self::DB_PREFIX . $number . 't_title');
             if($t_title){
-                $cont_title = str_replace('[title]', $title, $t_title);
-                $cont_title = str_replace('[cid]', $cid, $cont_title);
-                $cont_title = str_replace('[actress]', $actress_str, $cont_title);
-                $cont_title = str_replace('[performer]', $performer, $cont_title);
-                $cont_title = str_replace('[maker]', $maker_str, $cont_title);
-                $cont_title = str_replace('[label]', $label_str, $cont_title);
-                $cont_title = str_replace('[publisher]', $manufacture_str, $cont_title);
-                $cont_title = str_replace('[director]', $director_str, $cont_title);
-                $cont_title = str_replace('[series]', $series_str, $cont_title);
-                $cont_title = str_replace('[author]', $author_str, $cont_title);
-                $cont_title = str_replace('[volume]', $volume, $cont_title);
-                $cont_title = str_replace('[date]', $onDate, $cont_title);
-                $cont_title = str_replace('[genre]', $genre_str, $cont_title);
-                $cont_title = str_replace('[random1]', $random1, $cont_title);
-                $cont_title = str_replace('[random2]', $random2, $cont_title);
-                $cont_title = str_replace('[random3]', $random3, $cont_title);
-                $cont_title = str_replace('[review-count]', $review_count, $cont_title);
-                $cont_title = str_replace('[review-average]', $review_average, $cont_title);
+                // デバッグログ
+                error_log('=== Title Replacement Debug ===');
+                error_log('t_title: ' . $t_title);
+                error_log('list object structure: ' . print_r($list, true));
+                error_log('affiliate: ' . $affiliate);
+                
+                // 統一された変数置換システムを使用
+                $additional_data = [
+                    'comment_content' => $comment_content,
+                    'onDate' => $onDate,
+                    'price' => $price,
+                    'review_count' => $review_count,
+                    'review_average' => $review_average,
+                    'random1' => $random1,
+                    'random2' => $random2,
+                    'random3' => $random3,
+                ];
+                $cont_title = $content_generator->replaceVariables($t_title, $list, $affiliate, $additional_data);
+                error_log('Final cont_title: ' . $cont_title);
             }else{
                 $cont_title = $title;
             }
@@ -2736,54 +2870,51 @@ class FANZAAutoPlugin {
         if ($post_content) {
             $post_content = str_replace('<!-- wp:shortcode -->', '', $post_content);
             $post_content = str_replace('<!-- /wp:shortcode -->', '', $post_content);
-            $post_content = str_replace('[title]', $title, $post_content);
-            $post_content = str_replace('[cid]', $cid, $post_content);
-            $post_content = str_replace('[aff-link]', $affiliate, $post_content);
-            $post_content = str_replace('[detail-list]', $detail_content_ul, $post_content);
-            $post_content = str_replace('[detail-table]', $detail_content_table, $post_content);
-            $post_content = str_replace('[package]', $package_img, $post_content);
+            
+            // 統一された変数置換システムを使用
+            $additional_data = [
+                'comment_content' => $comment_content,
+                'comment_short' => $comment_short,
+                'post_comment' => $post_comment,
+                'onDate' => $onDate,
+                'price' => $price,
+                'review_count' => $review_count,
+                'review_average' => $review_average,
+                'random1' => $random1,
+                'random2' => $random2,
+                'random3' => $random3,
+                'detail_content_ul' => $detail_content_ul,
+                'detail_content_table' => $detail_content_table,
+                'package_img' => $package_img,
+                'smovie_content' => $smovie_content,
+                'sample_movie_link' => $sample_movie_link,
+                'tachiyomi_content' => $tachiyomi_content,
+                'tachiyomi_link' => $tachiyomi_link,
+                'sample_img_non' => $sample_img_non,
+                'sample_no_cap_link' => $sample_no_cap_link,
+                'sample_img_content_small' => $sample_img_content_small,
+                'act_page' => $act_page,
+                'act_table' => $act_table,
+                'button_content' => $button_content,
+                'button_content2' => $button_content2,
+                'review_html' => $review_html,
+                'review_html2' => $review_html2,
+            ];
+            
+            // sample-movie2の特別処理
             if(str_contains($post_content, '[sample-movie2]')){
                 $sample_movie2 = $this->getSampleMovie2($list, $poster_url);
-                $post_content = str_replace('[sample-movie2]', $sample_movie2, $post_content);
+                $additional_data['sample_movie2'] = $sample_movie2;
             }
-            $post_content = str_replace('[sample-movie]', $smovie_content, $post_content);
-            $post_content = str_replace('[sample-movie-link]', $sample_movie_link, $post_content);
-            $post_content = str_replace('[tachiyomi]', $tachiyomi_content, $post_content);
-            $post_content = str_replace('[tachiyomi-link]', $tachiyomi_link, $post_content);
-            // $post_content = str_replace('[sample-cap]', $sample_img_content, $post_content);
-            // $post_content = str_replace('[sample-photo]', $sample_img_content_no, $post_content);
-            $post_content = str_replace('[sample-cap]', $sample_img_non, $post_content);
-            $post_content = str_replace('[sample-photo]', $sample_no_cap_link, $post_content);
-            $post_content = str_replace('[sample-flex]', $sample_img_content_small, $post_content);
-            $post_content = str_replace('[sample-nolink]', $sample_img_non, $post_content);
-            $post_content = str_replace('[sample-no-cap-link]', $sample_no_cap_link, $post_content);
-            $post_content = str_replace('[act-info]', $act_page, $post_content);
-            $post_content = str_replace('[act-table]', $act_table, $post_content);
-            $post_content = str_replace('[comment]', $comment_content, $post_content);
-            $post_content = str_replace('[comment-short]', $comment_short, $post_content);
-            $post_content = str_replace('[user-comment]', $post_comment, $post_content);
-            $post_content = str_replace('[aff-button]', $button_content, $post_content);
-            $post_content = str_replace('[aff-button2]', $button_content2, $post_content);
-
-            $post_content = str_replace('[actress]', $actress_str, $post_content);
-            $post_content = str_replace('[performer]', $performer, $post_content);
-            $post_content = str_replace('[maker]', $maker_str, $post_content);
-            $post_content = str_replace('[label]', $label_str, $post_content);
-            $post_content = str_replace('[publisher]', $manufacture_str, $post_content);
-            $post_content = str_replace('[director]', $director_str, $post_content);
-            $post_content = str_replace('[series]', $series_str, $post_content);
-            $post_content = str_replace('[author]', $author_str, $post_content);
-            $post_content = str_replace('[volume]', $volume, $post_content);
-            $post_content = str_replace('[date]', $onDate, $post_content);
-            $post_content = str_replace('[genre]', $genre_str, $post_content);
-            $post_content = str_replace('[random1]', $random1, $post_content);
-            $post_content = str_replace('[random2]', $random2, $post_content);
-            $post_content = str_replace('[random3]', $random3, $post_content);
-
-            $post_content = str_replace('[review-count]', $review_count, $post_content);
-            $post_content = str_replace('[review-average]', $review_average, $post_content);
-            $post_content = str_replace('[review]', $review_html, $post_content);
-            $post_content = str_replace('[review2]', $review_html2, $post_content);
+            
+            // デバッグログ
+            error_log('=== Content Replacement Debug ===');
+            error_log('post_content: ' . $post_content);
+            error_log('additional_data: ' . print_r($additional_data, true));
+            
+            $post_content = $content_generator->replaceVariables($post_content, $list, $affiliate, $additional_data);
+            
+            error_log('Final post_content: ' . $post_content);
 
             $content = $post_content;
             $content .= $api_content;
@@ -2835,28 +2966,26 @@ class FANZAAutoPlugin {
         $post['post_content'] = $content;
         // post_excerpt XXX
         if($t_excerpt){
-            $excerpt = $t_excerpt;
-            $excerpt = str_replace('[title]', $title, $excerpt);
-            $excerpt = str_replace('[cid]', $cid, $excerpt);
-            $excerpt = str_replace('[comment]', strip_tags($contentDoc), $excerpt);
-            $excerpt = str_replace('[comment-short]', strip_tags($contentDoc_short), $excerpt);
-            $excerpt = str_replace('[actress]', $actress_str, $excerpt);
-            $excerpt = str_replace('[performer]', $performer, $excerpt);
-            $excerpt = str_replace('[maker]', $maker_str, $excerpt);
-            $excerpt = str_replace('[label]', $label_str, $excerpt);
-            $excerpt = str_replace('[publisher]', $manufacture_str, $excerpt);
-            $excerpt = str_replace('[director]', $director_str, $excerpt);
-            $excerpt = str_replace('[series]', $series_str, $excerpt);
-            $excerpt = str_replace('[author]', $author_str, $excerpt);
-            $excerpt = str_replace('[volume]', $volume, $excerpt);
-            $excerpt = str_replace('[date]', $onDate, $excerpt);
-            $excerpt = str_replace('[genre]', $genre_str, $excerpt);
-            $excerpt = str_replace('[random1]', $random1, $excerpt);
-            $excerpt = str_replace('[random2]', $random2, $excerpt);
-            $excerpt = str_replace('[random3]', $random3, $excerpt);
-            $excerpt = str_replace('[review-count]', $review_count, $excerpt);
-            $excerpt = str_replace('[review-average]', $review_average, $excerpt);
-
+            // デバッグログ
+            error_log('=== Excerpt Replacement Debug ===');
+            error_log('t_excerpt: ' . $t_excerpt);
+            error_log('contentDoc: ' . $contentDoc);
+            error_log('contentDoc_short: ' . $contentDoc_short);
+            
+            // 統一された変数置換システムを使用
+            $additional_data = [
+                'comment_content' => strip_tags($contentDoc),
+                'comment_short' => strip_tags($contentDoc_short),
+                'onDate' => $onDate,
+                'price' => $price,
+                'review_count' => $review_count,
+                'review_average' => $review_average,
+                'random1' => $random1,
+                'random2' => $random2,
+                'random3' => $random3,
+            ];
+            $excerpt = $content_generator->replaceVariables($t_excerpt, $list, $affiliate, $additional_data);
+            error_log('Final excerpt: ' . $excerpt);
             $post['post_excerpt'] = $excerpt;
 
             // if ($contentDoc != '') {
@@ -3501,6 +3630,22 @@ class FANZAAutoPlugin {
                             <td>ジャンル</td>
                             <td>[genre]</td>
                             </tr>
+                            <tr>
+                            <td>JANコード</td>
+                            <td>[jancode]</td>
+                            </tr>
+                            <tr>
+                            <td>価格</td>
+                            <td>[price]</td>
+                            </tr>
+                            <tr>
+                            <td>URL</td>
+                            <td>[url]</td>
+                            </tr>
+                            <tr>
+                            <td>説明</td>
+                            <td>[description]</td>
+                            </tr>
 
                             <tr>
                             <td>レビュー数</td>
@@ -3556,6 +3701,70 @@ class FANZAAutoPlugin {
                             <tr>
                             <td>サンプル動画(小)</td>
                             <td>[sample-movie]</td>
+                            </tr>
+                            <tr>
+                            <td>サンプル動画リンク</td>
+                            <td>[sample-movie-link]</td>
+                            </tr>
+                            <tr>
+                            <td>タチヨミ</td>
+                            <td>[tachiyomi]</td>
+                            </tr>
+                            <tr>
+                            <td>タチヨミリンク</td>
+                            <td>[tachiyomi-link]</td>
+                            </tr>
+                            <tr>
+                            <td>サンプル画像(キャプション付き)</td>
+                            <td>[sample-cap]</td>
+                            </tr>
+                            <tr>
+                            <td>サンプル画像(リンク付き)</td>
+                            <td>[sample-photo]</td>
+                            </tr>
+                            <tr>
+                            <td>サンプル画像(フレックス)</td>
+                            <td>[sample-flex]</td>
+                            </tr>
+                            <tr>
+                            <td>サンプル画像(リンクなし)</td>
+                            <td>[sample-nolink]</td>
+                            </tr>
+                            <tr>
+                            <td>サンプル画像(キャプションなしリンク)</td>
+                            <td>[sample-no-cap-link]</td>
+                            </tr>
+                            <tr>
+                            <td>女優情報</td>
+                            <td>[act-info]</td>
+                            </tr>
+                            <tr>
+                            <td>女優テーブル</td>
+                            <td>[act-table]</td>
+                            </tr>
+                            <tr>
+                            <td>コメント(短縮)</td>
+                            <td>[comment-short]</td>
+                            </tr>
+                            <tr>
+                            <td>ユーザーコメント</td>
+                            <td>[user-comment]</td>
+                            </tr>
+                            <tr>
+                            <td>アフィリエイトボタン</td>
+                            <td>[aff-button]</td>
+                            </tr>
+                            <tr>
+                            <td>アフィリエイトボタン2</td>
+                            <td>[aff-button2]</td>
+                            </tr>
+                            <tr>
+                            <td>レビュー</td>
+                            <td>[review]</td>
+                            </tr>
+                            <tr>
+                            <td>レビュー2</td>
+                            <td>[review2]</td>
                             </tr>
                             <tr>
                             <td>立ち読みボタン</td>

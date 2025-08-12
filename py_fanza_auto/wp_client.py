@@ -33,6 +33,18 @@ class WordPressClient:
             return data[0]
         return None
 
+    def get_post_by_id(self, post_id: int) -> Optional[Dict[str, Any]]:
+        """投稿IDで投稿を取得する"""
+        url = f"{self.base_url}/wp-json/wp/v2/posts/{post_id}"
+        try:
+            res = requests.get(url, headers=self.headers, timeout=self.timeout)
+            res.raise_for_status()
+            return res.json()
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 404:
+                return None
+            raise
+
     def upload_media(self, filename: str, bytes_data: bytes, mime_type: str = "image/jpeg") -> Dict[str, Any]:
         url = f"{self.base_url}/wp-json/wp/v2/media"
         headers = dict(self.headers)

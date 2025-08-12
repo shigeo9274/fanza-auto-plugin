@@ -1,0 +1,307 @@
+{
+  "request": {
+    "parameters": {
+      "api_id": "UZERsuYtq5ckLkJKZ97g",
+      "affiliate_id": "rimobai-996",
+      "output": "json"
+    }
+  },
+  "result": {
+    "site": [
+      {
+        "name": "DMM.com（一般）",
+        "code": "DMM.com",
+        "service": [
+          {
+            "name": "AKB48グループ",
+            "code": "lod",
+            "floor": [
+              {
+                "id": "1",
+                "name": "AKB48",
+                "code": "akb48"
+              },
+              {
+                "id": "2",
+                "name": "SKE48",
+                "code": "ske48"
+              },
+              {
+                "id": "3",
+                "name": "NMB48",
+                "code": "nmb48"
+              },
+              {
+                "id": "4",
+                "name": "HKT48",
+                "code": "hkt48"
+              },
+              {
+                "id": "5",
+                "name": "NGT48",
+                "code": "ngt48"
+              },
+              {
+                "id": "6",
+                "name": "REVIVAL!! ON DEMAND",
+                "code": "rod"
+              },
+              {
+                "id": "93",
+                "name": "STU48",
+                "code": "stu48"
+              }
+            ]
+          },
+          {
+            "name": "DMMブックス",
+            "code": "ebook",
+            "floor": [
+              {
+                "id": "19",
+                "name": "コミック",
+                "code": "comic"
+              },
+              {
+                "id": "20",
+                "name": "写真集",
+                "code": "photo"
+              },
+              {
+                "id": "21",
+                "name": "文芸・ラノベ",
+                "code": "novel"
+              },
+              {
+                "id": "22",
+                "name": "ビジネス・実用",
+                "code": "otherbooks"
+              }
+            ]
+          },
+          {
+            "name": "PCゲーム/ソフトウェア",
+            "code": "pcsoft",
+            "floor": [
+              {
+                "id": "23",
+                "name": "PCゲーム",
+                "code": "digital_pcgame"
+              },
+              {
+                "id": "24",
+                "name": "ソフトウェア",
+                "code": "digital_pcsoft"
+              }
+            ]
+          },
+          {
+            "name": "通販",
+            "code": "mono",
+            "floor": [
+              {
+                "id": "25",
+                "name": "DVD・Blu-ray",
+                "code": "dvd"
+              },
+              {
+                "id": "26",
+                "name": "CD",
+                "code": "cd"
+              },
+              {
+                "id": "27",
+                "name": "本・コミック",
+                "code": "book"
+              },
+              {
+                "id": "29",
+                "name": "ホビー",
+                "code": "hobby"
+              },
+              {
+                "id": "30",
+                "name": "家電・日用品",
+                "code": "kaden"
+              }
+            ]
+          },
+          {
+            "name": "DMMTV",
+            "code": "dmmtv",
+            "floor": [
+              {
+                "id": "95",
+                "name": "DMMTV",
+                "code": "dmmtv_video"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "FANZA（アダルト）",
+        "code": "FANZA",
+        "service": [
+          {
+            "name": "動画",
+            "code": "digital",
+            "floor": [
+              {
+                "id": "43",
+                "name": "ビデオ",
+                "code": "videoa"
+              },
+              {
+                "id": "44",
+                "name": "素人",
+                "code": "videoc"
+              },
+              {
+                "id": "45",
+                "name": "成人映画",
+                "code": "nikkatsu"
+              },
+              {
+                "id": "46",
+                "name": "アニメ動画",
+                "code": "anime"
+              }
+            ]
+          },
+          {
+            "name": "月額動画",
+            "code": "monthly",
+            "floor": [
+              {
+                "id": "68",
+                "name": "見放題ch デラックス",
+                "code": "premium"
+              },
+              {
+                "id": "91",
+                "name": "VRch",
+                "code": "vr"
+              },
+              {
+                "id": "98",
+                "name": "見放題ch",
+                "code": "standard"
+              }
+            ]
+          },
+          {
+            "name": "通販",
+            "code": "mono",
+            "floor": [
+              {
+                "id": "74",
+                "name": "DVD",
+                "code": "dvd"
+              },
+              {
+                "id": "75",
+                "name": "大人のおもちゃ",
+                "code": "goods"
+              },
+              {
+                "id": "76",
+                "name": "アニメ",
+                "code": "anime"
+              },
+              {
+                "id": "77",
+                "name": "PCゲーム",
+                "code": "pcgame"
+              },
+              {
+                "id": "78",
+                "name": "ブック",
+                "code": "book"
+              },
+              {
+                "id": "94",
+                "name": "フィギュア・グッズ",
+                "code": "figure"
+              }
+            ]
+          },
+          {
+            "name": "アダルトPCゲーム",
+            "code": "pcgame",
+            "floor": [
+              {
+                "id": "80",
+                "name": "アダルトPCゲーム",
+                "code": "digital_pcgame"
+              }
+            ]
+          },
+          {
+            "name": "同人",
+            "code": "doujin",
+            "floor": [
+              {
+                "id": "81",
+                "name": "同人",
+                "code": "digital_doujin"
+              },
+              {
+                "id": "99",
+                "name": "らぶカル（BL）",
+                "code": "digital_doujin_bl"
+              },
+              {
+                "id": "100",
+                "name": "らぶカル（TL）",
+                "code": "digital_doujin_tl"
+              }
+            ]
+          },
+          {
+            "name": "FANZAブックス",
+            "code": "ebook",
+            "floor": [
+              {
+                "id": "82",
+                "name": "コミック",
+                "code": "comic"
+              },
+              {
+                "id": "83",
+                "name": "美少女ノベル・官能小説",
+                "code": "novel"
+              },
+              {
+                "id": "84",
+                "name": "アダルト写真集・雑誌",
+                "code": "photo"
+              },
+              {
+                "id": "96",
+                "name": "BL",
+                "code": "bl"
+              },
+              {
+                "id": "97",
+                "name": "TL",
+                "code": "tl"
+              }
+            ]
+          },
+          {
+            "name": "FANZAブックス読み放題",
+            "code": "unlimited_book",
+            "floor": [
+              {
+                "id": "92",
+                "name": "FANZAブックス読み放題",
+                "code": "unlimited_comic"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

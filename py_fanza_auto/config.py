@@ -1,8 +1,8 @@
 from __future__ import annotations
 from pydantic import BaseModel, Field
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 import os
-from dotenv import load_dotenv
+from settings_manager import SettingsManager
 
 
 class Settings(BaseModel):
@@ -30,7 +30,7 @@ class Settings(BaseModel):
     # Post settings (simplified)
     post_status: str = Field("publish", alias="POST_STATUS")
     eye: str = Field("sample", alias="EYE")
-    poster: str = Field("sample", alias="POSTER")
+    poster: str = Field("package", alias="POSTER")
     maximage: int = Field(10, alias="MAXIMAGE")
     movie_size: str = Field("auto", alias="MOVIE_SIZE")
     random_text1: str = Field("", alias="RANDOM_TEXT1")
@@ -45,6 +45,26 @@ class Settings(BaseModel):
     headless: bool = Field(default=True, alias="HEADLESS")
     click_xpath: str = Field(default='//*[@id=":R6:"]/div[2]/div[2]/div[3]/div[1]/a', alias="CLICK_XPATH")
     page_wait_sec: int = Field(default=5, alias="PAGE_WAIT_SEC")
+    
+    # スクレイピング設定
+    description_selectors: List[str] = Field(default=[
+        "meta[name=description]",
+        "p.tx-productComment",
+        "p.summary__txt",
+        "p.mg-b20",
+        "p.text-overflow",
+        "div[class*='description']",
+        "div[class*='detail']",
+        "div[class*='info']",
+        "div[class*='content']"
+    ], alias="DESCRIPTION_SELECTORS")
+    
+    review_selectors: List[str] = Field(default=[
+        "#review",
+        "div[class*='review']",
+        "div[class*='comment']",
+        "div[class*='user']"
+    ], alias="REVIEW_SELECTORS")
 
     # GUI用の追加設定項目
     schedule_enabled: bool = Field(default=False, alias="SCHEDULE_ENABLED")
@@ -113,79 +133,53 @@ class Settings(BaseModel):
     # 投稿作成の動作設定（後方互換性のため残す）
     overwrite_existing: bool = Field(default=False, alias="OVERWRITE_EXISTING")
     target_new_posts: int = Field(default=0, alias="TARGET_NEW_POSTS")
+    
+    # 投稿設定の管理（settings.jsonのpost_settingsセクション用）
+    post_settings: Optional[Dict[str, Any]] = Field(default=None, alias="post_settings")
 
     @classmethod
     def load(cls) -> "Settings":
-        # .envファイルのパスを取得
-        env_file_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
-        
-        # .envファイルが存在する場合は読み込み
-        if os.path.exists(env_file_path):
-            load_dotenv(env_file_path, override=True)
-        else:
-            # .envファイルが存在しない場合は、現在のディレクトリからも試行
-            current_env_path = os.path.join(os.getcwd(), ".env")
-            if os.path.exists(current_env_path):
-                load_dotenv(current_env_path, override=True)
-        
-        # 環境変数から値を取得し、整数フィールドの処理を行う
-        env_vars = dict(os.environ)
-        
-        # PAGE_WAIT_SECの処理
-        if "PAGE_WAIT_SEC" in env_vars:
-            try:
-                page_wait = env_vars["PAGE_WAIT_SEC"]
-                if page_wait and page_wait.strip():
-                    env_vars["PAGE_WAIT_SEC"] = str(int(page_wait))
-                else:
-                    env_vars["PAGE_WAIT_SEC"] = "5"
-            except (ValueError, TypeError):
-                env_vars["PAGE_WAIT_SEC"] = "5"
-        
-        # HITSの処理
-        if "HITS" in env_vars:
-            try:
-                hits = env_vars["HITS"]
-                if hits and hits.strip():
-                    env_vars["HITS"] = str(int(hits))
-                else:
-                    env_vars["HITS"] = "10"
-            except (ValueError, TypeError):
-                env_vars["HITS"] = "10"
-        
-        # MAXIMAGEの処理
-        if "MAXIMAGE" in env_vars:
-            try:
-                maximage = env_vars["MAXIMAGE"]
-                if maximage and maximage.strip():
-                    env_vars["MAXIMAGE"] = str(int(maximage))
-                else:
-                    env_vars["MAXIMAGE"] = "10"
-            except (ValueError, TypeError):
-                env_vars["MAXIMAGE"] = "10"
-        
-        # LIMITED_FLAGの処理
-        if "LIMITED_FLAG" in env_vars:
-            try:
-                limited_flag = env_vars["LIMITED_FLAG"]
-                if limited_flag and limited_flag.strip():
-                    env_vars["LIMITED_FLAG"] = str(int(limited_flag))
-                else:
-                    env_vars["LIMITED_FLAG"] = "0"
-            except (ValueError, TypeError):
-                env_vars["LIMITED_FLAG"] = "0"
-        
-        # 投稿設定の整数フィールド処理
-        for i in range(1, 5):
-            target_key = f"POST_TARGET_NEW_POSTS_{i}"
-            if target_key in env_vars:
-                try:
-                    target_value = env_vars[target_key]
-                    if target_value and target_value.strip():
-                        env_vars[target_key] = str(int(target_value))
-                    else:
-                        env_vars[target_key] = "10"
-                except (ValueError, TypeError):
-                    env_vars[target_key] = "10"
-        
-        return cls.model_validate(env_vars, from_attributes=True)
+        """設定を読み込み"""
+        try:
+            # 設定マネージャーを使用して設定を読み込み
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            settings_manager = SettingsManager(base_dir)
+            settings_data = settings_manager.load_settings()
+            
+            if not settings_data:
+                # 設定が空の場合はデフォルト値で初期化
+                return cls()
+            
+            # 設定データを環境変数として設定（後方互換性のため）
+            for key, value in settings_data.items():
+                if key not in ["last_updated", "version"]:  # メタデータは除外
+                    os.environ[key] = str(value)
+            
+            # 重要な設定値を明示的に設定
+            if "USE_BROWSER" in settings_data:
+                settings_data["use_browser"] = settings_data["USE_BROWSER"]
+            if "HEADLESS" in settings_data:
+                settings_data["headless"] = settings_data["HEADLESS"]
+            if "CLICK_XPATH" in settings_data:
+                settings_data["click_xpath"] = settings_data["CLICK_XPATH"]
+            if "PAGE_WAIT_SEC" in settings_data:
+                settings_data["page_wait_sec"] = settings_data["PAGE_WAIT_SEC"]
+            
+            # Pydanticモデルとして検証
+            return cls.model_validate(settings_data, from_attributes=True)
+            
+        except Exception as e:
+            print(f"設定読み込みエラー: {e}")
+            # エラーが発生した場合はデフォルト値で初期化
+            return cls()
+    
+    @classmethod
+    def save(cls, settings_data: dict) -> bool:
+        """設定を保存"""
+        try:
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            settings_manager = SettingsManager(base_dir)
+            return settings_manager.save_settings(settings_data)
+        except Exception as e:
+            print(f"設定保存エラー: {e}")
+            return False
