@@ -411,9 +411,26 @@ class Engine:
                 content += f"\n\n<h3>詳細情報</h3>\n<div class='detail-content'>\n{chrome_description}\n</div>"
                 print(f"build_content: 詳細情報を追加: {len(chrome_description)}文字")
             
+            # レビュー情報を追加（固定テキストの場合は表示しない）
             if chrome_review and chrome_review != "レビュー要素が見つかりません" and chrome_review != "要素2取得エラー: ":
-                content += f"\n\n<h3>レビュー・コメント</h3>\n<div class='review-content'>\n{chrome_review}\n</div>"
-                print(f"build_content: レビュー情報を追加: {len(chrome_review)}文字")
+                # 固定のレビューテキストが含まれている場合は表示しない
+                fixed_review_texts = [
+                    "ユーザーレビューレビューが掲載されるたび10ポイントゲットこの作品に最初のレビューを書いてみませんか？他のユーザーにあなたの感想を伝えましょうレビューを書く / 編集する",
+                    "レビューが掲載されるたび10ポイントゲット",
+                    "この作品に最初のレビューを書いてみませんか？",
+                    "他のユーザーにあなたの感想を伝えましょう"
+                ]
+                
+                # 固定テキストが含まれているかチェック
+                is_fixed_text = any(fixed_text in chrome_review for fixed_text in fixed_review_texts)
+                
+                if not is_fixed_text:
+                    content += f"\n\n<h3>レビュー・コメント</h3>\n<div class='review-content'>\n{chrome_review}\n</div>"
+                    print(f"build_content: レビュー情報を追加: {len(chrome_review)}文字")
+                else:
+                    print(f"build_content: 固定レビューテキストをスキップ: {chrome_review[:50]}...")
+            else:
+                print(f"build_content: レビュー情報なしまたはエラー")
             
             print(f"build_content: コンテンツ構築完了: {len(content)}文字")
             
@@ -941,3 +958,43 @@ class Engine:
             print(f"run_test: エラー詳細: {traceback.format_exc()}")
             self.log_manager.error(LogType.ERROR, f"run_test error: {e}")
             return f"テスト実行エラー: {e}"
+
+    def rewrite_post(self, post_id: int, item: Dict[str, Any]) -> bool:
+        """既存投稿をリライトする"""
+        try:
+            print(f"rewrite_post: 投稿 {post_id} のリライト開始")
+            self.log_manager.info(LogType.SYSTEM, f"投稿 {post_id} のリライト開始")
+            
+            # 投稿設定を取得（デフォルト設定を使用）
+            posting_settings = self._get_default_posting_settings()
+            
+            # コンテンツを構築
+            title, content, media_bytes, media_name = self.build_content(item, posting_settings)
+            
+            # 投稿を更新
+            update_data = {
+                "title": title,
+                "content": content
+            }
+            
+            # メディアがある場合はアップロードしてアイキャッチに設定
+            if media_bytes and media_name:
+                try:
+                    media_id = self.wp.upload_media(media_name, media_bytes)
+                    if media_id:
+                        update_data["featured_media"] = media_id
+                        print(f"rewrite_post: メディアアップロード成功: {media_id}")
+                except Exception as e:
+                    print(f"rewrite_post: メディアアップロードエラー: {e}")
+            
+            # 投稿を更新
+            self.wp.update_post(post_id, update_data)
+            print(f"rewrite_post: 投稿 {post_id} の更新完了")
+            self.log_manager.info(LogType.SYSTEM, f"投稿 {post_id} のリライト完了")
+            
+            return True
+            
+        except Exception as e:
+            print(f"rewrite_post: エラー: {e}")
+            self.log_manager.error(LogType.ERROR, f"投稿 {post_id} のリライトエラー: {e}")
+            return False

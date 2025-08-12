@@ -2831,6 +2831,9 @@ class FanzaAutoGUI:
                 current_hour = now.hour
                 current_minute = now.minute
                 
+                # デバッグログ（毎分出力）
+                self.log_message(f"監視ループ: {current_hour:02d}:{current_minute:02d} - AUTO_ON: {self.auto_on_var.get()}")
+                
                 # 自動実行設定をチェック
                 if self.auto_on_var.get() == "on":
                     # 24時間分のチェックボックスをチェック
@@ -2844,6 +2847,10 @@ class FanzaAutoGUI:
                             
                             # 非同期で実行
                             self.root.after(0, lambda: self.run_auto_execution(post_setting_num))
+                        else:
+                            self.log_message(f"時間チェック: {current_hour:02d}:{current_minute:02d} != {self.exe_min_var.get()}")
+                    else:
+                        self.log_message(f"時間チェック: {hour_key} = {self.hour_vars.get(hour_key, 'N/A')}")
                 
                 # 1分待機
                 time.sleep(60)

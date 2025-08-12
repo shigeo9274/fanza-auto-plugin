@@ -25,12 +25,44 @@ class DMMClient:
             try:
                 url = f"{self.base}/{path}"
                 print(f"APIリクエスト: {url} (試行 {attempt + 1}/{self.max_retries})")
+                print(f"パラメータ: {params}")
+                
+                # 完全なURLを構築して表示
+                from urllib.parse import urlencode
+                full_url = f"{url}?{urlencode(params)}"
+                print(f"完全なURL: {full_url}")
                 
                 res = requests.get(url, params=params, timeout=self.timeout)
-                res.raise_for_status()
                 
-                result = res.json()
+                # HTTPステータスコードをチェック
+                if res.status_code != 200:
+                    print(f"HTTPエラー: {res.status_code} - {res.text}")
+                    if res.status_code == 401:
+                        raise Exception("API認証エラー: API IDまたはAffiliate IDが無効です")
+                    elif res.status_code == 403:
+                        raise Exception("APIアクセス拒否: 権限が不足しています")
+                    elif res.status_code == 429:
+                        raise Exception("API制限: リクエスト数が上限に達しました")
+                    else:
+                        raise Exception(f"HTTPエラー {res.status_code}: {res.text}")
+                
+                # レスポンスの内容をチェック
+                try:
+                    result = res.json()
+                except json.JSONDecodeError as e:
+                    print(f"JSONデコードエラー: {res.text}")
+                    raise Exception(f"APIレスポンスがJSON形式ではありません: {res.text}")
+                
+                # DMM APIのエラーレスポンスをチェック
+                if "error" in result:
+                    error_info = result["error"]
+                    error_msg = f"DMM APIエラー: {error_info.get('message', 'Unknown error')}"
+                    if 'code' in error_info:
+                        error_msg += f" (コード: {error_info['code']})"
+                    raise Exception(error_msg)
+                
                 print(f"APIレスポンス取得成功: {path}")
+                print(f"レスポンス件数: {len(result.get('result', {}).get('items', []))}")
                 return result
                 
             except requests.exceptions.Timeout as e:
@@ -94,6 +126,55 @@ class DMMClient:
         if lte_date:
             params["lte_date"] = lte_date
         return self._get("ItemList", params)
+
+    def test_connection(self) -> Dict[str, Any]:
+        """DMM APIの接続テスト"""
+        try:
+            print("DMM API接続テスト開始...")
+            
+            # 簡単な検索でAPI接続をテスト
+            test_result = self.item_list(
+                site="FANZA",
+                service="digital",
+                floor="videoc",
+                keyword="test",
+                hits=1
+            )
+            
+            print("DMM API接続テスト成功")
+            return {
+                "status": "success",
+                "message": "API接続が正常です",
+                "result": test_result
+            }
+            
+        except Exception as e:
+            error_msg = str(e)
+            print(f"DMM API接続テスト失敗: {error_msg}")
+            
+            # エラーの種類を判定
+            if "認証エラー" in error_msg:
+                error_type = "認証エラー"
+                suggestion = "API IDとAffiliate IDを確認してください"
+            elif "アクセス拒否" in error_msg:
+                error_type = "権限エラー"
+                suggestion = "APIの利用権限を確認してください"
+            elif "API制限" in error_msg:
+                error_type = "レート制限"
+                suggestion = "しばらく待ってから再試行してください"
+            elif "タイムアウト" in error_msg:
+                error_type = "ネットワークエラー"
+                suggestion = "ネットワーク接続を確認してください"
+            else:
+                error_type = "その他のエラー"
+                suggestion = "エラーログを確認してください"
+            
+            return {
+                "status": "error",
+                "error_type": error_type,
+                "message": error_msg,
+                "suggestion": suggestion
+            }
 
     def floor_list(self, use_cache: bool = True, cache_file: str = "floor_cache.json") -> Dict[str, Any]:
         """フロア一覧を取得（キャッシュ機能付き）"""

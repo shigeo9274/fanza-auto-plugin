@@ -2,7 +2,7 @@
   "post_settings": {
     "1": {
       "title": "[title]",
-      "content": "[title]の詳細情報です。",
+      "content": "<!-- wp:group {\"className\":\"fanza-post-content\"} -->\n<div class=\"wp-block-group fanza-post-content\">\n\n[package-image]\n\n<h2>[title]の詳細情報</h2>\n\n[detail-table]\n\n<p>[comment]</p>\n\n[sample-images]\n\n[sample-movie]\n\n[button]\n\n[api-mark]\n\n</div>\n<!-- /wp:group -->",
       "eyecatch": "sample",
       "movie_size": "auto",
       "poster": "package",
@@ -16,7 +16,7 @@
     },
     "2": {
       "title": "[title] - 設定2",
-      "content": "[title]の詳細情報です。設定2",
+      "content": "<!-- wp:group {\"className\":\"fanza-post-content\"} -->\n<div class=\"wp-block-group fanza-post-content\">\n\n[package-image]\n\n<h2>[title]の詳細情報</h2>\n\n[detail-table]\n\n<p>[comment]</p>\n\n[sample-images]\n\n[sample-movie]\n\n[button]\n\n[api-mark]\n\n</div>\n<!-- /wp:group -->",
       "eyecatch": "package",
       "movie_size": "720",
       "poster": "sample",
@@ -30,7 +30,7 @@
     },
     "3": {
       "title": "[title] - 設定3",
-      "content": "[title]の詳細情報です。設定3",
+      "content": "<!-- wp:group {\"className\":\"fanza-post-content\"} -->\n<div class=\"wp-block-group fanza-post-content\">\n\n[package-image]\n\n<h2>[title]の詳細情報</h2>\n\n[detail-table]\n\n<p>[comment]</p>\n\n[sample-images]\n\n[sample-movie]\n\n[button]\n\n[api-mark]\n\n</div>\n<!-- /wp:group -->",
       "eyecatch": "1",
       "movie_size": "600",
       "poster": "none",
@@ -44,7 +44,7 @@
     },
     "4": {
       "title": "[title] - 設定4",
-      "content": "[title]の詳細情報です。設定4",
+      "content": "<!-- wp:group {\"className\":\"fanza-post-content\"} -->\n<div class=\"wp-block-group fanza-post-content\">\n\n[package-image]\n\n<h2>[title]の詳細情報</h2>\n\n[detail-table]\n\n[sample-images]\n\n[sample-movie]\n\n[button]\n\n[api-mark]\n\n</div>\n<!-- /wp:group -->",
       "eyecatch": "99",
       "movie_size": "560",
       "poster": "package",

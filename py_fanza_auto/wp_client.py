@@ -99,6 +99,24 @@ class WordPressClient:
                 return cat.get('id')
         
         # カテゴリが存在しない場合は作成
+        url = f"{self.base_url}/wp-json/wp/v2/categories"
+        data = {"name": category_name}
+        res = requests.post(url, headers=self.headers, json=data, timeout=self.timeout)
+        res.raise_for_status()
+        return res.json().get('id')
+
+    def get_posts(self, per_page: int = 100, status: str = "publish", page: int = 1) -> List[Dict[str, Any]]:
+        """投稿一覧を取得する"""
+        url = f"{self.base_url}/wp-json/wp/v2/posts"
+        params = {
+            "per_page": per_page,
+            "status": status,
+            "page": page
+        }
+        res = requests.get(url, headers=self.headers, params=params, timeout=self.timeout)
+        res.raise_for_status()
+        return res.json()
+        # カテゴリが存在しない場合は作成
         create_data = {"name": category_name}
         url = f"{self.base_url}/wp-json/wp/v2/categories"
         res = requests.post(url, headers=self.headers, json=create_data, timeout=self.timeout)

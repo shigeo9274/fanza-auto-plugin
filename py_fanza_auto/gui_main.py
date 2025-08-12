@@ -24,6 +24,8 @@ from gui_schedule_settings import ScheduleSettingsTab
 from gui_post_settings import PostSettingsTab
 from gui_execution import ExecutionTab
 from gui_chrome_settings import ChromeSettingsTab
+from gui_llm_settings import LLMSettingsTab
+from gui_rewrite_tab import RewriteTab
 import gui_utils
 
 class FanzaAutoGUI:
@@ -86,6 +88,8 @@ class FanzaAutoGUI:
         self.schedule_settings_tab = None
         self.post_settings_tab = None
         self.execution_tab = None
+        self.llm_settings_tab = None
+        self.rewrite_tab = None
         
         print("GUIウィジェット作成開始")
         # GUIの構築
@@ -167,7 +171,9 @@ class FanzaAutoGUI:
         # 投稿設定タブの作成（元のgui.pyの実装を使用）
         self.create_post_settings_tab()
         self.chrome_settings_tab = ChromeSettingsTab(self.notebook, self)
+        self.llm_settings_tab = LLMSettingsTab(self.notebook, self)
         self.execution_tab = ExecutionTab(self.notebook, self)
+        self.rewrite_tab = RewriteTab(self.notebook, self.engine, self.settings_manager)
         
         # 設定状態表示フレーム
         self.create_settings_status_frame(main_frame)
@@ -472,6 +478,19 @@ class FanzaAutoGUI:
         setattr(self, f"post_content_text{setting_num}", content_text)
         ttk.Label(post_settings_frame, text="※テンプレート変数を使用可能", font=("Arial", 8), foreground="gray").grid(row=row, column=2, sticky=tk.W, padx=(5, 0), pady=5)
         
+        # LLM変数タグの説明を追加
+        row += 1
+        llm_info_frame = ttk.Frame(post_settings_frame)
+        llm_info_frame.grid(row=row, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(10, 0))
+        
+        llm_info_text = f"LLM変数タグ（新機能）: [llm_intro] [llm_seo_title] [llm_enhance]"
+        llm_info_label = ttk.Label(llm_info_frame, text=llm_info_text, font=("Arial", 9, "bold"), foreground="blue")
+        llm_info_label.pack(pady=5)
+        
+        llm_desc_text = "※これらのタグは、AIが説明文から魅力的な紹介文やSEOタイトルを自動生成します"
+        llm_desc_label = ttk.Label(llm_info_frame, text=llm_desc_text, font=("Arial", 8), foreground="gray")
+        llm_desc_label.pack()
+        
         row += 1
         ttk.Label(post_settings_frame, text="アイキャッチ:", font=("Arial", 10, "bold")).grid(row=row, column=0, sticky=tk.W, padx=(0, 15), pady=5)
         eyecatch_var = getattr(self, f"post_eyecatch_{setting_num}_var")
@@ -705,6 +724,7 @@ class FanzaAutoGUI:
             schedule_settings = self.schedule_settings_tab.get_variables() if self.schedule_settings_tab else {}
             # 投稿設定の取得（共通設定と個別設定）
             post_settings = self._get_post_settings_from_gui()
+            llm_settings = self.llm_settings_tab.get_variables() if self.llm_settings_tab else {}
             execution_settings = self.execution_tab.get_variables() if self.execution_tab else {}
             
             # 設定の統合
@@ -712,6 +732,7 @@ class FanzaAutoGUI:
             all_settings.update(basic_settings)
             all_settings.update(schedule_settings)
             all_settings.update(post_settings)
+            all_settings.update(llm_settings)
             all_settings.update(execution_settings)
             
             # デバッグ用：設定の内容をログに出力
@@ -719,6 +740,7 @@ class FanzaAutoGUI:
             self.log_message(f"  basic_settings: {len(basic_settings)}件")
             self.log_message(f"  schedule_settings: {len(schedule_settings)}件")
             self.log_message(f"  post_settings: {len(post_settings)}件")
+            self.log_message(f"  llm_settings: {len(llm_settings)}件")
             self.log_message(f"  execution_settings: {len(execution_settings)}件")
             self.log_message(f"  合計: {len(all_settings)}件")
             
@@ -769,20 +791,27 @@ class FanzaAutoGUI:
                     value = loaded_settings.get(key, '')
                     self.log_message(f"{key}: {value[:10]}{'...' if len(str(value)) > 10 else ''}")
                 
-                # 基本設定の読み込み
-                if self.basic_settings_tab:
-                    self.basic_settings_tab.load_from_settings(loaded_settings)
-                
-                # スケジュール設定の読み込み
-                if self.schedule_settings_tab:
-                    self.schedule_settings_tab.load_from_settings(loaded_settings)
-                
-                # 投稿設定の読み込み（共通設定と個別設定）
-                self._load_post_settings_to_gui(loaded_settings)
-                
-                # 実行設定の読み込み
-                if self.execution_tab:
-                    self.execution_tab.load_from_settings(loaded_settings)
+                            # 基本設定の読み込み
+            if self.basic_settings_tab:
+                self.basic_settings_tab.load_from_settings(loaded_settings)
+            
+            # スケジュール設定の読み込み
+            if self.schedule_settings_tab:
+                self.schedule_settings_tab.load_from_settings(loaded_settings)
+            
+            # メインGUIのスケジュール変数にも設定を読み込み
+            self._load_schedule_settings_to_gui(loaded_settings)
+            
+            # 投稿設定の読み込み（共通設定と個別設定）
+            self._load_post_settings_to_gui(loaded_settings)
+            
+            # LLM設定の読み込み
+            if self.llm_settings_tab:
+                self.llm_settings_tab.load_from_settings(loaded_settings)
+            
+            # 実行設定の読み込み
+            if self.execution_tab:
+                self.execution_tab.load_from_settings(loaded_settings)
                 
                 # 設定オブジェクトも更新
                 if self.settings:
@@ -847,6 +876,36 @@ class FanzaAutoGUI:
         except Exception as e:
             self.log_message(f"投稿設定読み込みエラー: {e}")
             print(f"投稿設定読み込みエラー詳細: {traceback.format_exc()}")
+    
+    def _load_schedule_settings_to_gui(self, settings):
+        """スケジュール設定をメインGUIの変数に読み込み"""
+        try:
+            # 自動実行設定
+            if hasattr(self, 'auto_on_var'):
+                self.auto_on_var.set(settings.get('AUTO_ON', 'off'))
+            
+            # 実行時刻[分]
+            if hasattr(self, 'exe_min_var'):
+                self.exe_min_var.set(settings.get('EXE_MIN', '0'))
+            
+            # 時間別チェックボックスと投稿設定選択
+            for hour in range(24):
+                hour_key = f"h{hour:02d}"
+                number_key = f"h{hour:02d}_number"
+                
+                # 時間チェックボックス
+                if hasattr(self, 'hour_vars') and hour_key in self.hour_vars:
+                    self.hour_vars[hour_key].set(settings.get(hour_key, False))
+                
+                # 投稿設定番号
+                if hasattr(self, 'hour_select_vars') and hour_key in self.hour_select_vars:
+                    self.hour_select_vars[hour_key].set(settings.get(number_key, '1'))
+            
+            self.log_message("スケジュール設定をメインGUIに読み込みました")
+            
+        except Exception as e:
+            self.log_message(f"スケジュール設定読み込みエラー: {e}")
+            print(f"スケジュール設定読み込みエラー詳細: {traceback.format_exc()}")
     
     def _load_individual_post_settings(self, settings, setting_num):
         """個別の投稿設定を読み込み"""
@@ -1459,6 +1518,8 @@ class FanzaAutoGUI:
                         self.schedule_settings_tab.set_default_values()
                     # 投稿設定のデフォルト値を設定
                     self._set_default_post_settings()
+                    if self.llm_settings_tab:
+                        self.llm_settings_tab.set_default_values()
                     if self.execution_tab:
                         self.execution_tab.set_default_values()
                     
@@ -1563,10 +1624,41 @@ class FanzaAutoGUI:
         """監視ループ"""
         try:
             while self.monitoring_active:
-                # 監視処理をここに実装
-                time.sleep(60)  # 1分間隔
+                # 現在時刻を取得
+                now = datetime.now()
+                current_hour = now.hour
+                current_minute = now.minute
+                
+                # デバッグログ（毎分出力）
+                self.log_message(f"監視ループ: {current_hour:02d}:{current_minute:02d}")
+                
+                # 自動実行設定をチェック
+                if hasattr(self, 'auto_on_var') and self.auto_on_var.get() == "on":
+                    # 24時間分のチェックボックスをチェック
+                    hour_key = f"h{current_hour:02d}"
+                    if hasattr(self, 'hour_vars') and hour_key in self.hour_vars and self.hour_vars[hour_key].get():
+                        # 指定された分に実行
+                        if hasattr(self, 'exe_min_var') and str(current_minute) == self.exe_min_var.get():
+                            # 投稿設定を取得
+                            post_setting_num = "1"  # デフォルト値
+                            if hasattr(self, 'hour_select_vars') and hour_key in self.hour_select_vars:
+                                post_setting_num = self.hour_select_vars[hour_key].get()
+                            
+                            self.log_message(f"自動実行: {current_hour:02d}:{current_minute:02d} - 投稿設定{post_setting_num}")
+                            
+                            # 非同期で実行
+                            self.root.after(0, lambda: self.run_auto_execution(post_setting_num))
+                        else:
+                            self.log_message(f"時間チェック: {current_hour:02d}:{current_minute:02d} != {getattr(self, 'exe_min_var', 'N/A')}")
+                    else:
+                        self.log_message(f"時間チェック: {hour_key} = {getattr(self, 'hour_vars', {}).get(hour_key, 'N/A')}")
+                
+                # 1分間隔
+                time.sleep(60)
         except Exception as e:
             self.log_message(f"監視ループエラー: {e}")
+            import traceback
+            self.log_message(f"エラー詳細: {traceback.format_exc()}")
     
     def manual_post(self, setting_num):
         """指定された投稿設定で手動投稿を実行"""
@@ -1856,6 +1948,23 @@ class FanzaAutoGUI:
         except Exception as e:
             print(f"終了処理エラー: {e}")
             self.root.quit()
+    
+    def run_auto_execution(self, post_setting_num):
+        """自動実行を実行する"""
+        try:
+            self.log_message(f"投稿設定{post_setting_num}で自動実行を開始します")
+            
+            # 投稿設定を選択
+            if hasattr(self, 'selected_post_setting_var'):
+                self.selected_post_setting_var.set(str(post_setting_num))
+            
+            # 1回実行を実行
+            self.run_once()
+            
+        except Exception as e:
+            self.log_message(f"自動実行エラー: {e}")
+            import traceback
+            self.log_message(f"エラー詳細: {traceback.format_exc()}")
 
 def main():
     """メイン関数"""
