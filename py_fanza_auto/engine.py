@@ -92,6 +92,7 @@ class Engine:
     category_manager: CategoryManager
     scheduler: Scheduler
     log_manager: LogManager
+    main_gui: Optional[Any] = None  # GUIへの参照
     _posting_settings_cache: Optional[Dict[str, PostingSettings]] = None
     _cache_timestamp: Optional[datetime] = None
     _cache_ttl: timedelta = timedelta(minutes=5)
@@ -109,10 +110,14 @@ class Engine:
         from scheduler import ScheduleConfig
         default_schedule_config = ScheduleConfig()
         
-        scheduler = Scheduler(default_schedule_config)
-        log_manager = LogManager(log_dir=str(base_dir))
+        # エンジンインスタンスを作成（一時的にNoneで初期化）
+        engine_instance = None
         
-        return cls(
+        # スケジューラーを作成（エンジンは後で設定）
+        scheduler = Scheduler(default_schedule_config, engine=engine_instance)
+        
+        # エンジンインスタンスを作成
+        engine_instance = cls(
             settings=s,
             dmm=DMMClient(s.dmm_api_id, s.dmm_affiliate_id),
             wp=WordPressClient(s.wp_base_url, s.wp_username, s.wp_app_password),
@@ -120,8 +125,16 @@ class Engine:
             settings_manager=settings_manager,
             category_manager=category_manager,
             scheduler=scheduler,
-            log_manager=log_manager,
+            log_manager=LogManager(log_dir=str(base_dir)),
         )
+        
+        # スケジューラーにエンジンオブジェクトを設定
+        scheduler.engine = engine_instance
+        
+        # スケジューラーを開始
+        scheduler.start()
+        
+        return engine_instance
 
     def _get_default_posting_settings(self) -> PostingSettings:
         """デフォルトの投稿設定を取得"""
@@ -172,90 +185,97 @@ class Engine:
             page_wait_sec=5
         )
 
-    def _load_posting_settings(self, post_setting_num: str = "1") -> PostingSettings:
-        """投稿設定を読み込み、キャッシュを活用"""
+    def _load_posting_settings(self, post_setting_num: str = "1"):
+        """投稿設定を読み込み"""
+        print(f"_load_posting_settings: ファイルから設定{post_setting_num}を読み込み")
+        
+        # キャッシュをチェック
+        if (self._posting_settings_cache and 
+            post_setting_num in self._posting_settings_cache and
+            self._cache_timestamp and 
+            (datetime.now() - self._cache_timestamp).seconds < 300):  # 5分間キャッシュ
+            print(f"_load_posting_settings: キャッシュから設定{post_setting_num}を取得")
+            return self._posting_settings_cache[post_setting_num]
+        
+        # post_settings_1 → 1 に変換
+        if post_setting_num.startswith('post_settings_'):
+            actual_setting_num = post_setting_num.replace('post_settings_', '')
+            print(f"_load_posting_settings: 設定名を変換: {post_setting_num} → {actual_setting_num}")
+        else:
+            actual_setting_num = post_setting_num
+        
+        # 優先度1: config/post_settings.jsonから直接読み込み
         try:
-            # キャッシュが有効かチェック
-            if (self._posting_settings_cache and 
-                self._cache_timestamp and 
-                datetime.now() - self._cache_timestamp < self._cache_ttl):
-                
-                if post_setting_num in self._posting_settings_cache:
-                    cached_settings = self._posting_settings_cache[post_setting_num]
-                    print(f"_load_posting_settings: キャッシュから設定{post_setting_num}を取得")
-                    return cached_settings
-            
-            # キャッシュが無効な場合はファイルから読み込み
-            print(f"_load_posting_settings: ファイルから設定{post_setting_num}を読み込み")
-            
-            # 現在の設定から投稿設定を取得
-            print(f"_load_posting_settings: self.settingsの型: {type(self.settings)}")
-            print(f"_load_posting_settings: self.settingsの内容: {self.settings}")
-            
-            if hasattr(self.settings, 'post_settings') and self.settings.post_settings:
-                post_settings = self.settings.post_settings
-                print(f"_load_posting_settings: settings.post_settingsから取得: {len(post_settings)}件")
-                print(f"_load_posting_settings: 利用可能な設定: {list(post_settings.keys())}")
-                print(f"_load_posting_settings: post_settingsの型: {type(post_settings)}")
-                
-                if post_setting_num in post_settings:
-                    setting_data = post_settings[post_setting_num]
-                    print(f"_load_posting_settings: 設定{post_setting_num}のデータ: {setting_data}")
-                    print(f"_load_posting_settings: 設定{post_setting_num}のデータ型: {type(setting_data)}")
-                    
-                    try:
-                        posting_settings = PostingSettings.from_dict(setting_data)
-                        print(f"_load_posting_settings: 設定{post_setting_num}の読み込み完了")
-                        print(f"_load_posting_settings: タイトル: {posting_settings.title}")
-                        print(f"_load_posting_settings: コンテンツ: {posting_settings.content[:50]}...")
-                    except Exception as e:
-                        print(f"_load_posting_settings: PostingSettings.from_dictでエラー: {e}")
-                        import traceback
-                        print(f"_load_posting_settings: エラー詳細: {traceback.format_exc()}")
-                        posting_settings = self._get_default_posting_settings()
+            import json
+            import os
+            post_settings_file = os.path.join(os.path.dirname(__file__), 'config', 'post_settings.json')
+            print(f"_load_posting_settings: post_settings.jsonファイルパス: {post_settings_file}")
+            if os.path.exists(post_settings_file):
+                with open(post_settings_file, 'r', encoding='utf-8') as f:
+                    post_settings_data = json.load(f)
+                print(f"_load_posting_settings: post_settings.jsonから読み込み成功")
+                print(f"_load_posting_settings: ファイル内容のキー: {list(post_settings_data.keys())}")
+                if 'post_settings' in post_settings_data and actual_setting_num in post_settings_data['post_settings']:
+                    setting_data = post_settings_data['post_settings'][actual_setting_num]
+                    print(f"_load_posting_settings: post_settings.jsonから設定{actual_setting_num}を取得")
+                    print(f"_load_posting_settings: 設定内容: {setting_data.get('content', '')[:200]}...")
+                    posting_settings = PostingSettings.from_dict(setting_data)
+                    print(f"_load_posting_settings: post_settings.jsonから設定{actual_setting_num}の読み込み完了")
+                    print(f"_load_posting_settings: タイトル: {posting_settings.title}")
+                    print(f"_load_posting_settings: コンテンツ: {posting_settings.content[:200]}...")
+                    # Update cache
+                    if not self._posting_settings_cache:
+                        self._posting_settings_cache = {}
+                    self._posting_settings_cache[post_setting_num] = posting_settings
+                    self._cache_timestamp = datetime.now()
+                    return posting_settings
                 else:
-                    print(f"_load_posting_settings: 設定{post_setting_num}が見つからないため、デフォルト設定を使用")
-                    posting_settings = self._get_default_posting_settings()
+                    print(f"_load_posting_settings: post_settings.jsonに設定{actual_setting_num}が見つかりません")
+                    print(f"_load_posting_settings: 利用可能な設定: {list(post_settings_data.get('post_settings', {}).keys())}")
             else:
-                print(f"_load_posting_settings: settings.post_settingsが存在しないため、デフォルト設定を使用")
-                print(f"_load_posting_settings: settingsの属性: {dir(self.settings)}")
-                if hasattr(self.settings, 'post_settings'):
-                    print(f"_load_posting_settings: post_settingsの値: {self.settings.post_settings}")
-                posting_settings = self._get_default_posting_settings()
-            
-            # デフォルト設定とマージ
-            default_settings = self._get_default_posting_settings()
-            posting_settings = posting_settings.merge_with_defaults(default_settings)
-            
-            # サービスパラメータの最終確認
-            if not posting_settings.service or posting_settings.service.strip() == "":
-                posting_settings.service = "digital"
-                print(f"_load_posting_settings: サービスパラメータが空のため、デフォルト値 'digital' を設定")
-            
-            print(f"_load_posting_settings: 最終的なサービスパラメータ: {posting_settings.service}")
-            
-            # キャッシュを更新
-            if not self._posting_settings_cache:
-                self._posting_settings_cache = {}
-            self._posting_settings_cache[post_setting_num] = posting_settings
-            self._cache_timestamp = datetime.now()
-            
-            return posting_settings
-            
+                print(f"_load_posting_settings: post_settings.jsonファイルが存在しません")
         except Exception as e:
-            print(f"_load_posting_settings: 設定読み込みエラー: {e}")
-            self.log_manager.error(LogType.SYSTEM, f"投稿設定読み込みエラー: {e}")
-            
-            # エラーが発生した場合はデフォルト設定を使用
-            default_settings = self._get_default_posting_settings()
-            print(f"_load_posting_settings: デフォルト設定を使用")
-            return default_settings
+            print(f"_load_posting_settings: post_settings.jsonからの読み込みに失敗: {e}")
+            import traceback
+            print(f"_load_posting_settings: エラー詳細: {traceback.format_exc()}")
+        
+        # 優先度2: settings.jsonから読み込み
+        print(f"_load_posting_settings: settings.jsonから設定を読み込み")
+        if hasattr(self.settings, 'post_settings') and self.settings.post_settings:
+            print(f"_load_posting_settings: settings.post_settingsから取得: {len(self.settings.post_settings)}件")
+            if actual_setting_num in self.settings.post_settings:
+                setting_data = self.settings.post_settings[actual_setting_num]
+                print(f"_load_posting_settings: 設定{actual_setting_num}を取得")
+                posting_settings = PostingSettings.from_dict(setting_data)
+                print(f"_load_posting_settings: 設定{actual_setting_num}の読み込み完了")
+                # Update cache
+                if not self._posting_settings_cache:
+                    self._posting_settings_cache = {}
+                self._posting_settings_cache[post_setting_num] = posting_settings
+                self._cache_timestamp = datetime.now()
+                return posting_settings
+            else:
+                print(f"_load_posting_settings: settings.jsonに設定{actual_setting_num}が見つからないため、デフォルト設定を使用")
+        else:
+            print(f"_load_posting_settings: settings.jsonにpost_settingsが存在しません")
+        
+        # 最後の手段: デフォルト設定を返す
+        print(f"_load_posting_settings: デフォルト設定を使用")
+        return self._get_default_posting_settings()
 
     def _clear_settings_cache(self):
         """設定キャッシュをクリア"""
         self._posting_settings_cache = None
         self._cache_timestamp = None
         print("_clear_settings_cache: 設定キャッシュをクリアしました")
+    
+    def force_reload_posting_settings(self, post_setting_num: str = "1"):
+        """投稿設定を強制的に再読み込み"""
+        print(f"force_reload_posting_settings: 設定{post_setting_num}を強制再読み込み")
+        # キャッシュをクリア
+        self._clear_settings_cache()
+        # 設定を再読み込み
+        return self._load_posting_settings(post_setting_num)
 
     def _convert_service_to_english(self, service: str) -> str:
         """サービスパラメータを英語に変換"""
@@ -381,14 +401,38 @@ class Engine:
                             # 説明文とレビューを抽出
                             chrome_description, chrome_review = extract_specific_elements(html)
                             print(f"build_content: Chrome取得完了 - 説明文: {len(chrome_description)}文字, レビュー: {len(chrome_review)}文字")
+                            
+                            # インスタンス変数に保存（LLM変数タグ処理で使用）
+                            self._chrome_description = chrome_description
+                            self._chrome_review = chrome_review
                         else:
                             print(f"build_content: ChromeでHTML取得失敗")
+                            self._chrome_description = ""
+                            self._chrome_review = ""
                 except Exception as e:
                     print(f"build_content: Chrome詳細情報取得エラー: {e}")
                     # エラーが発生しても処理を続行
+                    self._chrome_description = ""
+                    self._chrome_review = ""
             
             # タイトルの構築
             title_template = posting_settings.title
+            print(f"build_content: タイトルテンプレート: {title_template}")
+            
+            # タイトルテンプレートにLLM変数タグが含まれている場合は先に処理
+            if hasattr(self, 'main_gui') and self.main_gui and ('[llm_' in title_template):
+                try:
+                    description = self._get_item_description(item)
+                    print(f"build_content: タイトルテンプレートLLM変数タグ処理開始")
+                    print(f"build_content: タイトル用説明文長: {len(description) if description else 0}")
+                    title_template = self.main_gui.process_llm_vartags(title_template, item, description)
+                    print(f"build_content: タイトルテンプレートLLM変数タグ処理完了: {title_template}")
+                except Exception as e:
+                    print(f"build_content: タイトルテンプレートLLM変数タグ処理エラー: {e}")
+                    import traceback
+                    print(f"build_content: エラー詳細: {traceback.format_exc()}")
+            
+            # 基本的な変数タグを置き換え
             title = self.renderer.replace_variables(title_template, item)
             print(f"build_content: タイトル構築完了: {title}")
             
@@ -399,12 +443,22 @@ class Engine:
             affiliate_url = item.get('affiliateURL', '')
             movie_size = posting_settings.movie_size
             
+            print(f"build_content: レンダリング開始:")
+            print(f"build_content: テンプレート内容: {content_template[:200]}...")
+            print(f"build_content: アフィリエイトURL: {affiliate_url}")
+            print(f"build_content: 動画サイズ: {movie_size}")
+            print(f"build_content: アイテム情報: title={item.get('title', 'N/A')}, content_id={item.get('content_id', 'N/A')}")
+            
             content = self.renderer.render_template(
                 template_content=content_template,
                 item=item,
                 affiliate_url=affiliate_url,
                 movie_size=movie_size
             )
+            
+            print(f"build_content: レンダリング完了:")
+            print(f"build_content: 生成されたコンテンツ長: {len(content)}")
+            print(f"build_content: コンテンツ内容（最初の500文字）: {content[:500]}...")
             
             # Chromeで取得した詳細情報をコンテンツに追加
             if chrome_description and chrome_description != "要素1取得エラー: ":
@@ -588,10 +642,103 @@ class Engine:
         
         return tags
 
+    def _get_item_description(self, item: Dict[str, Any]) -> str:
+        """アイテムから説明文を取得（複数のソースから）"""
+        description = ""
+        
+        # 1. Chromeで取得した詳細情報から取得（優先度最高）
+        # build_contentで取得したChrome詳細情報を直接使用
+        if hasattr(self, '_chrome_description') and self._chrome_description:
+            description += f"詳細説明: {self._chrome_description}\n"
+            print(f"_get_item_description: Chrome詳細情報から説明文構築: {len(self._chrome_description)}文字")
+        
+        if hasattr(self, '_chrome_review') and self._chrome_review:
+            description += f"レビュー: {self._chrome_review}\n"
+            print(f"_get_item_description: Chromeレビューから説明文構築: {len(self._chrome_review)}文字")
+        
+        # 2. iteminfo.articleから取得
+        iteminfo = item.get('iteminfo', {})
+        if iteminfo:
+            article = iteminfo.get('article', '')
+            if article:
+                description += f"記事情報: {article}\n"
+        
+        # 3. タイトルから取得
+        title = item.get('title', '')
+        if title:
+            description += f"タイトル: {title}\n"
+        
+        # 4. ジャンル情報から取得
+        genres = item.get('genre', [])
+        if genres:
+            genre_names = [g.get('name', '') for g in genres if g.get('name')]
+            if genre_names:
+                description += f"ジャンル: {', '.join(genre_names)}\n"
+        
+        # 5. 出演者情報から取得
+        actresses = item.get('actress', [])
+        if actresses:
+            actress_names = [a.get('name', '') for a in actresses if a.get('name')]
+            if actress_names:
+                description += f"出演者: {', '.join(actress_names)}\n"
+        
+        # 6. メーカー情報から取得
+        makers = item.get('maker', [])
+        if makers:
+            maker_names = [m.get('name', '') for m in makers if m.get('name')]
+            if maker_names:
+                description += f"メーカー: {', '.join(maker_names)}\n"
+        
+        # 7. シリーズ情報から取得
+        series = item.get('series', [])
+        if series:
+            series_names = [s.get('name', '') for s in series if s.get('name')]
+            if series_names:
+                description += f"シリーズ: {', '.join(series_names)}\n"
+        
+        # 8. 発売日から取得
+        date = item.get('date', '')
+        if date:
+            description += f"発売日: {date}\n"
+        
+        # 9. 収録時間/ページ数から取得
+        volume = item.get('volume', '')
+        if volume:
+            description += f"収録: {volume}\n"
+        
+        print(f"_get_item_description: 説明文構築完了 - 長さ: {len(description)}")
+        if description:
+            print(f"_get_item_description: 説明文内容: {description[:200]}...")
+        return description.strip()
+
     def post_one(self, item: Dict[str, Any], posting_settings: Optional[PostingSettings] = None) -> Optional[int]:
         try:
             print(f"post_one: コンテンツ構築開始: {item.get('title', 'No title')}")
             title, content, media_bytes, media_name = self.build_content(item, posting_settings)
+            
+            # LLM変数タグ処理
+            print(f"post_one: LLM変数タグ処理開始")
+            print(f"post_one: main_gui存在チェック: {hasattr(self, 'main_gui')}")
+            print(f"post_one: main_gui値: {self.main_gui}")
+            
+            if hasattr(self, 'main_gui') and self.main_gui:
+                try:
+                    # 説明文を複数のソースから取得
+                    description = self._get_item_description(item)
+                    print(f"post_one: 説明文長: {len(description) if description else 0}")
+                    print(f"post_one: 説明文内容: {description[:200] if description else 'None'}...")
+                    print(f"post_one: 処理前コンテンツ: {content[:100]}...")
+                    
+                    content = self.main_gui.process_llm_vartags(content, item, description)
+                    print(f"post_one: LLM変数タグ処理完了")
+                    print(f"post_one: 処理後コンテンツ: {content[:100]}...")
+                except Exception as e:
+                    print(f"post_one: LLM変数タグ処理エラー: {e}")
+                    import traceback
+                    print(f"post_one: エラー詳細: {traceback.format_exc()}")
+            else:
+                print(f"post_one: main_guiが利用できないため、LLM変数タグ処理をスキップ")
+            
             print(f"post_one: タイトル: {title}")
             print(f"post_one: コンテンツ長: {len(content)}")
             
@@ -620,6 +767,26 @@ class Engine:
                         print(f"post_one: 既存投稿を上書きします: ID {existing_post_id}")
                         # 既存の投稿を更新
                         try:
+                            # LLM変数タグ処理（更新時）
+                            print(f"post_one: 更新時LLM変数タグ処理開始")
+                            if hasattr(self, 'main_gui') and self.main_gui:
+                                try:
+                                    # 説明文を複数のソースから取得
+                                    description = self._get_item_description(item)
+                                    print(f"post_one: 更新時説明文長: {len(description) if description else 0}")
+                                    print(f"post_one: 更新時説明文内容: {description[:200] if description else 'None'}...")
+                                    print(f"post_one: 更新時処理前コンテンツ: {content[:100]}...")
+                                    
+                                    content = self.main_gui.process_llm_vartags(content, item, description)
+                                    print(f"post_one: 更新時LLM変数タグ処理完了")
+                                    print(f"post_one: 更新時処理後コンテンツ: {content[:100]}...")
+                                except Exception as e:
+                                    print(f"post_one: 更新時LLM変数タグ処理エラー: {e}")
+                                    import traceback
+                                    print(f"post_one: エラー詳細: {traceback.format_exc()}")
+                            else:
+                                print(f"post_one: 更新時main_guiが利用できないため、LLM変数タグ処理をスキップ")
+                            
                             # 更新用のデータを準備
                             update_data = {
                                 "title": title,
@@ -959,17 +1126,51 @@ class Engine:
             self.log_manager.error(LogType.ERROR, f"run_test error: {e}")
             return f"テスト実行エラー: {e}"
 
-    def rewrite_post(self, post_id: int, item: Dict[str, Any]) -> bool:
+    def rewrite_post(self, post_id: int, item: Dict[str, Any], settings_name: str = "default") -> bool:
         """既存投稿をリライトする"""
         try:
-            print(f"rewrite_post: 投稿 {post_id} のリライト開始")
-            self.log_manager.info(LogType.SYSTEM, f"投稿 {post_id} のリライト開始")
+            print(f"rewrite_post: 投稿 {post_id} のリライト開始 (設定: {settings_name})")
+            self.log_manager.info(LogType.SYSTEM, f"投稿 {post_id} のリライト開始 (設定: {settings_name})")
             
-            # 投稿設定を取得（デフォルト設定を使用）
-            posting_settings = self._get_default_posting_settings()
+            # 設定キャッシュを強制クリア
+            self._clear_settings_cache()
+            print(f"rewrite_post: 設定キャッシュを強制クリア")
+            
+            # 投稿設定を取得
+            if settings_name == "default":
+                # デフォルトの場合は設定1を使用
+                print(f"rewrite_post: デフォルト設定のため、設定1を使用")
+                posting_settings = self._load_posting_settings("1")
+            else:
+                try:
+                    posting_settings = self._load_posting_settings(settings_name)
+                    print(f"rewrite_post: 投稿設定 '{settings_name}' を使用")
+                    print(f"rewrite_post: 設定内容: {posting_settings.content[:200]}...")
+                except Exception as e:
+                    print(f"rewrite_post: 投稿設定 '{settings_name}' の読み込みに失敗、設定1を使用: {e}")
+                    try:
+                        posting_settings = self._load_posting_settings("1")
+                    except Exception as e2:
+                        print(f"rewrite_post: 設定1の読み込みにも失敗、デフォルト設定を使用: {e2}")
+                        posting_settings = self._get_default_posting_settings()
+            
+            # 使用する設定の詳細をログ出力
+            print(f"rewrite_post: 使用する投稿設定:")
+            print(f"rewrite_post: - タイトルテンプレート: {posting_settings.title}")
+            print(f"rewrite_post: - コンテンツテンプレート長: {len(posting_settings.content)}")
+            print(f"rewrite_post: - カテゴリ: {posting_settings.category}")
+            print(f"rewrite_post: - ステータス: {posting_settings.status}")
             
             # コンテンツを構築
             title, content, media_bytes, media_name = self.build_content(item, posting_settings)
+            
+            # デバッグ情報を出力
+            print(f"rewrite_post: 構築されたコンテンツ:")
+            print(f"rewrite_post: タイトル: {title}")
+            print(f"rewrite_post: コンテンツ長: {len(content)}")
+            print(f"rewrite_post: メディアバイト: {len(media_bytes) if media_bytes else 0}")
+            print(f"rewrite_post: メディア名: {media_name}")
+            print(f"rewrite_post: コンテンツ内容（最初の500文字）: {content[:500]}...")
             
             # 投稿を更新
             update_data = {

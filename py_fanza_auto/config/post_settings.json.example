@@ -1,0 +1,11 @@
+{
+  "post_title_template": "{title}",
+  "post_content_template": "post_content_1.html",
+  "post_status": "draft",
+  "post_category": [],
+  "post_tags": [],
+  "featured_image": true,
+  "gallery_images": true,
+  "max_images": 10,
+  "image_quality": "medium"
+}

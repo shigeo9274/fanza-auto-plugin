@@ -308,7 +308,7 @@ class ScheduleSettingsTab:
                 if 'EXE_MIN' in settings:
                     self.vars['EXE_MIN'].set(settings['EXE_MIN'] or "0")
                 
-                # 時間選択チェックボックスと投稿設定を読み込み
+                # 時間選択チェックボックスと投稿設定を読み込み（正しい変数名で）
                 for hour_key in self.hour_vars:
                     if hour_key in settings:
                         self.hour_vars[hour_key].set(settings[hour_key] or False)
@@ -338,7 +338,7 @@ class ScheduleSettingsTab:
                 if hasattr(settings, 'exe_min'):
                     self.vars['EXE_MIN'].set(settings.exe_min or "0")
                 
-                # 時間選択チェックボックスと投稿設定を読み込み
+                # 時間選択チェックボックスと投稿設定を読み込み（正しい変数名で）
                 for hour_key in self.hour_vars:
                     if hasattr(settings, hour_key):
                         self.hour_vars[hour_key].set(getattr(settings, hour_key) or False)
@@ -389,15 +389,19 @@ class ScheduleSettingsTab:
             if 'POST_TARGET' in self.vars:
                 self.vars['POST_TARGET'].set(settings.get('POST_TARGET', 'recent'))
             
-            # 時間設定
-            for hour in range(24):
-                hour_key = f"HOUR_h{hour:02d}"
-                hour_select_key = f"HOUR_h{hour:02d}_SELECT"
-                
-                if hour_key in self.hour_vars:
+            # 時間設定（正しい変数名で読み込み）
+            for hour_key in self.hour_vars:
+                if hour_key in settings:
                     self.hour_vars[hour_key].set(settings.get(hour_key, False))
-                if hour_select_key in self.hour_number_vars:
-                    self.hour_number_vars[hour_select_key].set(settings.get(hour_select_key, '1'))
+                else:
+                    self.hour_vars[hour_key].set(False)
+                
+                # 投稿設定番号を読み込み
+                number_key = f"{hour_key}_number"
+                if number_key in settings:
+                    self.hour_number_vars[hour_key].set(settings.get(number_key, '1'))
+                else:
+                    self.hour_number_vars[hour_key].set('1')
             
             # その他の設定
             for key in self.vars:
@@ -415,15 +419,12 @@ class ScheduleSettingsTab:
         for key, var in self.vars.items():
             result[key] = var.get()
         
-        # 時間設定
-        for hour in range(24):
-            hour_key = f"HOUR_h{hour:02d}"
-            hour_select_key = f"HOUR_h{hour:02d}_SELECT"
-            
-            if hour_key in self.hour_vars:
-                result[hour_key] = self.hour_vars[hour_key].get()
-            if hour_select_key in self.hour_number_vars:
-                result[hour_select_key] = self.hour_number_vars[hour_select_key].get()
+        # 時間設定（正しい変数名で保存）
+        for hour_key in self.hour_vars:
+            result[hour_key] = self.hour_vars[hour_key].get()
+            # 投稿設定番号も保存
+            if hour_key in self.hour_number_vars:
+                result[f"{hour_key}_number"] = self.hour_number_vars[hour_key].get()
         
         return result
 
@@ -532,11 +533,12 @@ class ScheduleSettingsTab:
             config["EXE_MIN"] = self.vars['EXE_MIN'].get()
             
             # 時間設定（h00-h23）
-            for i in range(24):
-                hour_key = f"h{i:02d}"
-                if hour_key in self.hour_vars:
-                    var = self.hour_vars[hour_key]
-                    config[hour_key] = var.get()
+            for hour_key in self.hour_vars:
+                config[hour_key] = self.hour_vars[hour_key].get()
+                
+                # 投稿設定番号も含める
+                if hour_key in self.hour_number_vars:
+                    config[f"{hour_key}_number"] = self.hour_number_vars[hour_key].get()
             
             return config
             

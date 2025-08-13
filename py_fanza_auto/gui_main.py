@@ -61,6 +61,8 @@ class FanzaAutoGUI:
                 print("デフォルト設定で初期化")
             
             self.engine = Engine.from_settings(self.settings)
+            # エンジンにGUI参照を設定（LLM変数タグ処理用）
+            self.engine.main_gui = self
             print("エンジン初期化成功")
         except Exception as e:
             print(f"設定読み込みエラー: {e}")
@@ -68,6 +70,8 @@ class FanzaAutoGUI:
             # エラーが発生してもGUIは起動する
             self.settings = Settings()
             self.engine = Engine.from_settings(self.settings)
+            # エンジンにGUI参照を設定（LLM変数タグ処理用）
+            self.engine.main_gui = self
             print("デフォルト値で初期化しました")
         
         self.scheduler: Optional[BackgroundScheduler] = None
@@ -860,14 +864,14 @@ class FanzaAutoGUI:
             if hasattr(self, 'random_text3_var'):
                 self.random_text3_var.set(settings.get('RANDOM_TEXT3', ''))
             
-            # 時間別投稿設定の読み込み
+            # 時間別投稿設定の読み込み（正しい変数名で）
             for hour in range(24):
-                hour_key = f"HOUR_h{hour:02d}"
-                hour_select_key = f"HOUR_h{hour:02d}_SELECT"
+                hour_key = f"h{hour:02d}"
+                number_key = f"h{hour:02d}_number"
                 if hasattr(self, f'hour_{hour:02d}_var'):
                     getattr(self, f'hour_{hour:02d}_var').set(settings.get(hour_key, False))
                 if hasattr(self, f'hour_{hour:02d}_select_var'):
-                    getattr(self, f'hour_{hour:02d}_select_var').set(settings.get(hour_select_key, '1'))
+                    getattr(self, f'hour_{hour:02d}_select_var').set(settings.get(number_key, '1'))
             
             # 個別投稿設定の読み込み（1-4）
             for setting_num in range(1, 5):
@@ -888,7 +892,7 @@ class FanzaAutoGUI:
             if hasattr(self, 'exe_min_var'):
                 self.exe_min_var.set(settings.get('EXE_MIN', '0'))
             
-            # 時間別チェックボックスと投稿設定選択
+            # 時間別チェックボックスと投稿設定選択（正しい変数名で）
             for hour in range(24):
                 hour_key = f"h{hour:02d}"
                 number_key = f"h{hour:02d}_number"
@@ -1965,6 +1969,190 @@ class FanzaAutoGUI:
             self.log_message(f"自動実行エラー: {e}")
             import traceback
             self.log_message(f"エラー詳細: {traceback.format_exc()}")
+    
+    def process_llm_vartags(self, content: str, list_data: dict, description: str) -> str:
+        """LLM変数タグを処理して実際の内容に置き換え"""
+        try:
+            print(f"process_llm_vartags: 開始 - コンテンツ長: {len(content) if content else 0}")
+            print(f"process_llm_vartags: 説明文長: {len(description) if description else 0}")
+            print(f"process_llm_vartags: コンテンツ内容: {content[:200] if content else 'None'}...")
+            
+            if not content:
+                print("process_llm_vartags: コンテンツが空のため処理をスキップ")
+                return content
+            
+            # LLM設定を取得
+            llm_settings = self.get_llm_settings()
+            print(f"process_llm_vartags: LLM設定: {llm_settings}")
+            
+            if not llm_settings:
+                self.log_message("LLM設定が取得できません")
+                print("process_llm_vartags: LLM設定が取得できないため処理をスキップ")
+                return content
+            
+            # LLMプロバイダーを確認
+            provider = llm_settings.get('LLM_PROVIDER', 'local')
+            
+            # ローカルLLMの場合
+            if provider == 'local':
+                return self.process_local_llm_vartags(content, list_data, description, llm_settings)
+            # OpenAIの場合
+            elif provider == 'openai':
+                return self.process_openai_llm_vartags(content, list_data, description, llm_settings)
+            # Anthropicの場合
+            elif provider == 'anthropic':
+                return self.process_anthropic_llm_vartags(content, list_data, description, llm_settings)
+            # Googleの場合
+            elif provider == 'google':
+                return self.process_google_llm_vartags(content, list_data, description, llm_settings)
+            else:
+                self.log_message(f"未対応のLLMプロバイダー: {provider}")
+                return content
+                
+        except Exception as e:
+            self.log_message(f"LLM変数タグ処理エラー: {e}")
+            return content
+    
+    def process_local_llm_vartags(self, content: str, list_data: dict, description: str, llm_settings: dict) -> str:
+        """ローカルLLM（Ollama）で変数タグを処理"""
+        try:
+            import requests
+            import json
+            
+            endpoint = llm_settings.get('LOCAL_ENDPOINT', 'http://localhost:11434')
+            model = llm_settings.get('LOCAL_MODEL', 'qwen2.5:7b')
+            max_tokens = int(llm_settings.get('LLM_MAX_TOKENS', '1000'))
+            temperature = float(llm_settings.get('LLM_TEMPERATURE', '0.7'))
+            
+            # [llm_intro]タグの処理
+            if '[llm_intro]' in content:
+                print("process_llm_vartags: [llm_intro]タグを処理中...")
+                prompt = f"以下の説明文から、魅力的な紹介文を日本語で生成してください：\n\n{description}\n\n紹介文："
+                intro_text = self.generate_with_local_llm(endpoint, model, prompt, max_tokens, temperature)
+                if intro_text:
+                    content = content.replace('[llm_intro]', intro_text)
+                    self.log_message("LLM紹介文を生成しました")
+                    print(f"process_llm_vartags: [llm_intro]生成完了: {intro_text[:100]}...")
+                else:
+                    print("process_llm_vartags: [llm_intro]生成失敗")
+            
+            # [llm_seo_title]タグの処理
+            if '[llm_seo_title]' in content:
+                print("process_llm_vartags: [llm_seo_title]タグを処理中...")
+                prompt = f"以下の説明文から、SEOに効果的な短いタイトル（20文字以内）を日本語で生成してください。説明文の内容を簡潔に表現し、検索に適したキーワードを含めてください：\n\n{description}\n\nSEOタイトル（20文字以内）："
+                seo_title = self.generate_with_local_llm(endpoint, model, prompt, max_tokens, temperature)
+                if seo_title:
+                    # 生成されたテキストから最初の行のみを取得し、長すぎる場合は短縮
+                    seo_title = seo_title.strip().split('\n')[0]
+                    if len(seo_title) > 30:
+                        seo_title = seo_title[:30] + "..."
+                    content = content.replace('[llm_seo_title]', seo_title)
+                    self.log_message("LLM SEOタイトルを生成しました")
+                    print(f"process_llm_vartags: [llm_seo_title]置き換え完了: {seo_title}")
+                else:
+                    print("process_llm_vartags: [llm_seo_title]生成失敗")
+            
+            # [llm_enhance]タグの処理
+            if '[llm_enhance]' in content:
+                print("process_llm_vartags: [llm_enhance]タグを処理中...")
+                prompt = f"以下の説明文を拡張して、より魅力的なコンテンツを日本語で生成してください：\n\n{description}\n\n拡張コンテンツ："
+                enhanced_content = self.generate_with_local_llm(endpoint, model, prompt, max_tokens, temperature)
+                if enhanced_content:
+                    content = content.replace('[llm_enhance]', enhanced_content)
+                    self.log_message("LLM拡張コンテンツを生成しました")
+                    print(f"process_llm_vartags: [llm_enhance]生成完了: {enhanced_content[:100]}...")
+                else:
+                    print("process_llm_vartags: [llm_enhance]生成失敗")
+            
+            print(f"process_llm_vartags: 処理完了 - 最終コンテンツ長: {len(content)}")
+            return content
+            
+        except Exception as e:
+            self.log_message(f"ローカルLLM変数タグ処理エラー: {e}")
+            return content
+    
+    def generate_with_local_llm(self, endpoint: str, model: str, prompt: str, max_tokens: int, temperature: float) -> str:
+        """ローカルLLMでテキスト生成"""
+        try:
+            import requests
+            import json
+            
+            print(f"generate_with_local_llm: 開始 - endpoint: {endpoint}, model: {model}")
+            print(f"generate_with_local_llm: prompt: {prompt[:100]}...")
+            print(f"generate_with_local_llm: max_tokens: {max_tokens}, temperature: {temperature}")
+            
+            url = f"{endpoint}/api/generate"
+            payload = {
+                "model": model,
+                "prompt": prompt,
+                "stream": False,
+                "options": {
+                    "temperature": temperature,
+                    "num_predict": max_tokens
+                }
+            }
+            
+            print(f"generate_with_local_llm: API呼び出し中...")
+            response = requests.post(url, json=payload, timeout=60)
+            print(f"generate_with_local_llm: レスポンスステータス: {response.status_code}")
+            
+            if response.status_code == 200:
+                result = response.json()
+                generated_text = result.get('response', '').strip()
+                print(f"generate_with_local_llm: 生成成功 - 長さ: {len(generated_text)}")
+                return generated_text
+            else:
+                error_msg = f"ローカルLLM API エラー: {response.status_code}"
+                self.log_message(error_msg)
+                print(f"generate_with_local_llm: {error_msg}")
+                return ""
+                
+        except Exception as e:
+            error_msg = f"ローカルLLM生成エラー: {e}"
+            self.log_message(error_msg)
+            print(f"generate_with_local_llm: {error_msg}")
+            import traceback
+            print(f"generate_with_local_llm: エラー詳細: {traceback.format_exc()}")
+            return ""
+    
+    def get_llm_settings(self) -> dict:
+        """LLM設定を取得"""
+        try:
+            if hasattr(self, 'llm_settings_tab') and self.llm_settings_tab:
+                return self.llm_settings_tab.get_variables()
+            else:
+                # 設定ファイルから読み込み
+                if hasattr(self, 'settings_manager') and self.settings_manager:
+                    settings = self.settings_manager.load_settings()
+                    return {
+                        'LLM_PROVIDER': settings.get('LLM_PROVIDER', 'local'),
+                        'LOCAL_ENDPOINT': settings.get('LOCAL_ENDPOINT', 'http://localhost:11434'),
+                        'LOCAL_MODEL': settings.get('LOCAL_MODEL', 'qwen2.5:7b'),
+                        'LLM_MAX_TOKENS': settings.get('LLM_MAX_TOKENS', '1000'),
+                        'LLM_TEMPERATURE': settings.get('LLM_TEMPERATURE', '0.7')
+                    }
+                return {}
+        except Exception as e:
+            self.log_message(f"LLM設定取得エラー: {e}")
+            return {}
+    
+    def process_openai_llm_vartags(self, content: str, list_data: dict, description: str, llm_settings: dict) -> str:
+        """OpenAIで変数タグを処理（実装予定）"""
+        # TODO: OpenAI API実装
+        self.log_message("OpenAI LLM処理は未実装です")
+        return content
+    
+    def process_anthropic_llm_vartags(self, content: str, list_data: dict, description: str, llm_settings: dict) -> str:
+        """Anthropicで変数タグを処理（実装予定）"""
+        # TODO: Anthropic API実装
+        self.log_message("Anthropic LLM処理は未実装です")
+        return content
+    
+    def process_google_llm_vartags(self, content: str, list_data: dict, description: str, llm_settings: dict) -> str:
+        """Googleで変数タグを処理（実装予定）"""
+        # TODO: Google API実装
+        self.log_message("Google LLM処理は未実装です")
+        return content
 
 def main():
     """メイン関数"""

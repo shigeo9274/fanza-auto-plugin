@@ -8,10 +8,11 @@ import logging
 import os
 from dataclasses import dataclass
 from enum import Enum
+import json
 
 # ログ設定
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.FileHandler('scheduler.log'),
@@ -26,6 +27,7 @@ class ScheduleType(Enum):
     WEEKLY = "毎週"
     MONTHLY = "毎月"
     CUSTOM = "カスタム"
+    HOURLY = "時間別"  # 新しい時間別スケジュール
 
 
 @dataclass
@@ -41,21 +43,148 @@ class ScheduleConfig:
     target_posts: int = 10
 
 
+class HourlyScheduleConfig:
+    """時間別スケジュール設定"""
+    def __init__(self, config_file: str = "config/schedule_settings.json"):
+        self.config_file = config_file
+        self.config = {}
+        self.last_modified = 0
+        self._load_config()
+    
+    def _load_config(self) -> Dict[str, Any]:
+        """設定ファイルを読み込み"""
+        try:
+            if os.path.exists(self.config_file):
+                # ファイルの更新時刻をチェック
+                current_modified = os.path.getmtime(self.config_file)
+                if current_modified > self.last_modified:
+                    with open(self.config_file, 'r', encoding='utf-8') as f:
+                        self.config = json.load(f)
+                    self.last_modified = current_modified
+                    logger.info(f"時間別スケジュール設定を再読み込みしました: {self.config_file}")
+        except Exception as e:
+            logger.error(f"時間別スケジュール設定読み込みエラー: {e}")
+        return self.config
+    
+    def is_enabled(self) -> bool:
+        """自動実行が有効かチェック"""
+        # 設定ファイルを再読み込み
+        self._load_config()
+        return self.config.get('AUTO_ON', 'off') == 'on'
+    
+    def get_execution_minute(self) -> int:
+        """実行分を取得"""
+        try:
+            return int(self.config.get('EXE_MIN', '0'))
+        except ValueError:
+            return 0
+    
+    def get_active_hours(self) -> Dict[str, str]:
+        """有効な時間と投稿設定番号を取得"""
+        active_hours = {}
+        for hour in range(24):
+            hour_key = f"h{hour:02d}"
+            if self.config.get(hour_key, False):
+                number_key = f"{hour_key}_number"
+                post_setting = self.config.get(number_key, '1')
+                active_hours[hour_key] = post_setting
+        return active_hours
+    
+    def should_run_now(self) -> Optional[str]:
+        """現在時刻で実行すべきかチェック"""
+        # 設定ファイルを再読み込み
+        self._load_config()
+        
+        now = datetime.now()
+        current_minute = now.minute
+        current_hour = now.hour
+        
+        # 実行分と一致するかチェック
+        if current_minute != self.get_execution_minute():
+            return None
+        
+        # 現在の時間が有効かチェック
+        hour_key = f"h{current_hour:02d}"
+        if self.config.get(hour_key, False):
+            number_key = f"{hour_key}_number"
+            return self.config.get(number_key, '1')
+        
+        return None
+
+
 class Scheduler:
     """投稿スケジュール管理クラス"""
     
-    def __init__(self, config: ScheduleConfig, engine=None):
+    def __init__(self, config: ScheduleConfig = None, engine=None):
         self.engine = engine
         self.config = config
+        self.hourly_config = HourlyScheduleConfig()
         self.running = False
         self.thread = None
         self._setup_schedule()
     
     def _setup_schedule(self):
         """スケジュールを設定"""
-        if not self.config.enabled:
-            return
+        # 時間別スケジュールの設定
+        if self.hourly_config.is_enabled():
+            self._setup_hourly_schedule()
         
+        # 従来のスケジュール設定
+        if self.config and self.config.enabled:
+            self._setup_legacy_schedule()
+    
+    def _setup_hourly_schedule(self):
+        """時間別スケジュールを設定"""
+        try:
+            # 毎分チェックするスケジュールを設定（scheduleライブラリではなく、独自のチェック）
+            logger.info("時間別スケジュールを設定しました")
+        except Exception as e:
+            logger.error(f"時間別スケジュール設定エラー: {e}")
+    
+    def _check_hourly_schedule(self):
+        """時間別スケジュールをチェック"""
+        try:
+            # デバッグログを追加
+            now = datetime.now()
+            logger.debug(f"時間別スケジュールチェック: {now.strftime('%H:%M:%S')}")
+            
+            post_setting = self.hourly_config.should_run_now()
+            if post_setting:
+                logger.info(f"時間別スケジュール実行: 投稿設定{post_setting}")
+                self._run_hourly_task(post_setting)
+            else:
+                logger.debug(f"時間別スケジュール: 実行条件を満たしていません (現在: {now.strftime('%H:%M')}, 実行分: {self.hourly_config.get_execution_minute()}, 有効時間: {self.hourly_config.get_active_hours()})")
+        except Exception as e:
+            logger.error(f"時間別スケジュールチェックエラー: {e}")
+    
+    def _run_hourly_task(self, post_setting: str):
+        """時間別スケジュールタスクを実行"""
+        try:
+            logger.info(f"時間別スケジュールタスク開始: 設定{post_setting}")
+            
+            if self.engine:
+                # エンジンの設定を一時的に更新
+                original_target = getattr(self.engine.settings, 'target_new_posts', 10)
+                setattr(self.engine.settings, 'target_new_posts', 10)
+                
+                # 投稿実行
+                created_posts = self.engine.run_once(post_setting)
+                
+                # 設定を元に戻す
+                setattr(self.engine.settings, 'target_new_posts', original_target)
+                
+                logger.info(f"時間別スケジュールタスク完了: {len(created_posts)}件の投稿を作成")
+            else:
+                logger.warning("エンジンが設定されていないため、時間別スケジュールを実行できません")
+                
+        except Exception as e:
+            logger.error(f"時間別スケジュールタスクエラー: {e}")
+    
+    def _setup_legacy_schedule(self):
+        """従来のスケジュールを設定"""
+        if not self.config:
+            return
+            
         try:
             if self.config.schedule_type == ScheduleType.DAILY:
                 schedule.every().day.at(self.config.time).do(
@@ -102,7 +231,7 @@ class Scheduler:
                 self._setup_custom_cron()
                 
         except Exception as e:
-            logger.error(f"スケジュール設定エラー: {e}")
+            logger.error(f"従来スケジュール設定エラー: {e}")
     
     def _setup_custom_cron(self):
         """カスタムcron式を設定"""
@@ -154,7 +283,8 @@ class Scheduler:
             logger.warning("スケジューラーは既に実行中です")
             return
         
-        if not self.config.enabled:
+        # 時間別スケジュールまたは従来のスケジュールが有効かチェック
+        if not self.hourly_config.is_enabled() and (not self.config or not self.config.enabled):
             logger.info("スケジュールが無効のため、スケジューラーを開始しません")
             return
         
@@ -177,7 +307,13 @@ class Scheduler:
         """スケジューラーのメインループ"""
         while self.running:
             try:
+                # 従来のスケジュールをチェック
                 schedule.run_pending()
+                
+                # 時間別スケジュールを毎分チェック
+                if self.hourly_config.is_enabled():
+                    self._check_hourly_schedule()
+                
                 time.sleep(60)  # 1分ごとにチェック
             except Exception as e:
                 logger.error(f"スケジューラーエラー: {e}")

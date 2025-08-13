@@ -110,19 +110,24 @@ class WordPressClient:
         url = f"{self.base_url}/wp-json/wp/v2/posts"
         params = {
             "per_page": per_page,
-            "status": status,
             "page": page
         }
+        
+        # statusパラメータは、空文字列でない場合のみ追加
+        if status:
+            params["status"] = status
+        
+        print(f"WordPress API呼び出し: {url}")
+        print(f"パラメータ: {params}")
+        
         res = requests.get(url, headers=self.headers, params=params, timeout=self.timeout)
+        
+        print(f"レスポンスステータス: {res.status_code}")
+        if res.status_code != 200:
+            print(f"エラーレスポンス: {res.text[:500]}")
+        
         res.raise_for_status()
         return res.json()
-        # カテゴリが存在しない場合は作成
-        create_data = {"name": category_name}
-        url = f"{self.base_url}/wp-json/wp/v2/categories"
-        res = requests.post(url, headers=self.headers, json=create_data, timeout=self.timeout)
-        res.raise_for_status()
-        new_cat = res.json()
-        return new_cat.get('id')
 
     def get_or_create_tag(self, tag_name: str) -> int:
         """タグ名からIDを取得、存在しない場合は作成"""

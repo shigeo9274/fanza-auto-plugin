@@ -1,0 +1,19 @@
+{
+  "dmm_api_id": "your_dmm_api_id_here",
+  "dmm_affiliate_id": "your_affiliate_id_here",
+  "wordpress_base_url": "https://your-wordpress-site.com",
+  "wordpress_username": "your_username",
+  "wordpress_application_password": "your_app_password",
+  "site": "FANZA",
+  "service": "digital",
+  "floor": "videoc",
+  "hits": 1,
+  "sort": "date",
+  "keyword": "",
+  "use_browser": true,
+  "headless": true,
+  "click_xpath": "//*[@id=\":R6:\"]/div[2]/div[2]/div[3]/div[1]/a",
+  "page_wait_sec": 5,
+  "cron_minute": 0,
+  "cron_hours": "0,6,12,18"
+}

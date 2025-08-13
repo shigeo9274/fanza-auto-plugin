@@ -1,0 +1,9 @@
+{
+  "enabled": true,
+  "interval_minutes": 60,
+  "start_time": "09:00",
+  "end_time": "23:00",
+  "max_posts_per_day": 10,
+  "skip_weekends": false,
+  "timezone": "Asia/Tokyo"
+}
